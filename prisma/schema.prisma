@@ -1,0 +1,359 @@
+// ═══════════════════════════════════════════════════════════
+// InterviewVault AI — Prisma Schema
+// ═══════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum InterviewFrequency {
+  RARE
+  COMMON
+  VERY_COMMON
+}
+
+enum RevisionStatus {
+  NOT_STARTED
+  LEARNING
+  REVISED_ONCE
+  MASTERED
+}
+
+enum QuestionTagEnum {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  FREQUENTLY_ASKED
+}
+
+enum NoteType {
+  INTERVIEW_NOTES
+  CHEAT_SHEET
+  QUICK_REVISION
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+// ── Auth Models (NextAuth) ─────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String?
+  role           UserRole  @default(USER)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts       Account[]
+  sessions       Session[]
+
+  resumes        Resume[]
+  technologies   Technology[]
+  questions      Question[]
+  mockInterviews MockInterview[]
+  notes          Note[]
+  revisionRecords RevisionRecord[]
+  likes          Like[]
+  bookmarks      Bookmark[]
+  subscription   Subscription?
+  aiCredits      AICredit?
+
+  @@index([email])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ── Resume & Skills ────────────────────────────────────────
+
+model Resume {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  parsedAt  DateTime?
+  rawText   String?  @db.Text
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skills    Skill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Skill {
+  id       String @id @default(cuid())
+  name     String
+  category String // "language", "framework", "database", "tool", "other"
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([resumeId])
+}
+
+// ── Technology Workspaces ──────────────────────────────────
+
+model Technology {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String
+  icon        String?
+  description String?
+  order       Int     @default(0)
+
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questions   Question[]
+  notes       Note[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, slug])
+  @@index([userId])
+}
+
+// ── Questions ──────────────────────────────────────────────
+
+model Question {
+  id                 String             @id @default(cuid())
+  title              String
+  answer             String?            @db.Text
+  codeExample        String?            @db.Text
+  codeLanguage       String?
+  theoryExample      String?            @db.Text
+  difficulty         Difficulty         @default(MEDIUM)
+  interviewFrequency InterviewFrequency @default(COMMON)
+  tags               QuestionTagEnum[]
+  revisionStatus     RevisionStatus     @default(NOT_STARTED)
+  isPublic           Boolean            @default(false)
+  followUpQuestions  String[]
+
+  technologyId       String
+  technology         Technology         @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  revisionRecords    RevisionRecord[]
+  likes              Like[]
+  bookmarks          Bookmark[]
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([technologyId])
+  @@index([userId])
+  @@index([isPublic])
+}
+
+// ── Revision System ────────────────────────────────────────
+
+model RevisionRecord {
+  id        String   @id @default(cuid())
+  revisedAt DateTime @default(now())
+  nextReviewAt DateTime?
+  quality   Int      @default(0) // 0-5 spaced repetition quality
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([questionId])
+  @@index([nextReviewAt])
+}
+
+// ── Mock Interviews ────────────────────────────────────────
+
+model MockInterview {
+  id            String     @id @default(cuid())
+  technology    String
+  difficulty    Difficulty
+  totalQuestions Int
+  score         Float?
+  accuracy      Float?
+  completeness  Float?
+  communication Float?
+  feedback      String?    @db.Text
+  areasOfImprovement String[]
+  completedAt   DateTime?
+
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questions     MockInterviewQuestion[]
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model MockInterviewQuestion {
+  id          String @id @default(cuid())
+  question    String @db.Text
+  expectedAnswer String? @db.Text
+  userAnswer  String? @db.Text
+  score       Float?
+  feedback    String? @db.Text
+  order       Int
+
+  interviewId String
+  interview   MockInterview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([interviewId])
+}
+
+// ── Notes ──────────────────────────────────────────────────
+
+model Note {
+  id       String   @id @default(cuid())
+  title    String
+  content  String   @db.Text
+  type     NoteType @default(INTERVIEW_NOTES)
+
+  technologyId String?
+  technology   Technology? @relation(fields: [technologyId], references: [id], onDelete: SetNull)
+
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([technologyId])
+}
+
+// ── Community ──────────────────────────────────────────────
+
+model Like {
+  id         String @id @default(cuid())
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+}
+
+model Bookmark {
+  id         String @id @default(cuid())
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+}
+
+// ── SaaS ───────────────────────────────────────────────────
+
+model Subscription {
+  id                 String           @id @default(cuid())
+  plan               SubscriptionPlan @default(FREE)
+  stripeCustomerId   String?          @unique
+  stripeSubscriptionId String?        @unique
+  stripePriceId      String?
+  stripeCurrentPeriodEnd DateTime?
+
+  userId             String           @unique
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model AICredit {
+  id        String @id @default(cuid())
+  credits   Int    @default(50) // Free plan default
+  used      Int    @default(0)
+
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
