@@ -20,12 +20,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { GlassCard } from "@/components/shared";
+import { GlassCard, RichTextEditor } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
 import { createQuestion, generateAIQuestions, deleteQuestion, updateQuestion, toggleQuestionPublic } from "@/actions/questions";
 import { toast } from "sonner";
 import { TECH_ICONS } from "@/constants";
+
+/** Returns true if the string contains HTML tags (rich-text answer). */
+function isHtmlContent(str: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(str);
+}
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -511,7 +516,7 @@ export default function TechnologyWorkspacePage() {
         </div>
       ) : (
         <motion.div variants={staggerContainer} className="space-y-3">
-          {filteredQuestions.map((q) => (
+          {filteredQuestions.map((q, index) => (
             <motion.div key={q.id} variants={fadeInUp}>
               <GlassCard className="p-0 overflow-hidden">
                 {/* Question Header (clickable) */}
@@ -521,6 +526,7 @@ export default function TechnologyWorkspacePage() {
                 >
                   <div className="flex-1 min-w-0 pr-4">
                     <div className="flex items-center gap-2">
+                      <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{index + 1}.</span>
                       <h3 className="font-semibold text-sm sm:text-base">{q.title}</h3>
                       {q.isPublic && (
                         <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
@@ -606,7 +612,18 @@ export default function TechnologyWorkspacePage() {
                         {/* Answer */}
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2">Answer</h4>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.answer || "No answer details provided."}</p>
+                          {q.answer ? (
+                            isHtmlContent(q.answer) ? (
+                              <div
+                                className="rich-text-content text-sm leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: q.answer }}
+                              />
+                            ) : (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.answer}</p>
+                            )
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No answer details provided.</p>
+                          )}
                         </div>
 
                         {/* Code Example */}
@@ -692,12 +709,11 @@ export default function TechnologyWorkspacePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Answer</label>
-                  <textarea
-                    required
+                  <RichTextEditor
                     value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
+                    onChange={(html) => setAnswer(html)}
                     placeholder="Provide the comprehensive answer..."
-                    className="w-full h-32 rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-none"
+                    minHeight="140px"
                   />
                 </div>
                 <div>

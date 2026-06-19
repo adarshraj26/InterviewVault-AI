@@ -381,3 +381,95 @@ input[type="button"],
 .cursor-pointer {
   cursor: pointer;
 }
+
+/* ── Rich Text Content Rendering ────────────────────────────
+   Applied both inside the Tiptap editor (ProseMirror) and
+   in read-only answer display areas (.rich-text-content).
+   ─────────────────────────────────────────────────────────── */
+.rich-text-content,
+.tiptap-editor .ProseMirror {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: inherit;
+}
+
+.rich-text-content p,
+.tiptap-editor .ProseMirror p {
+  margin: 0.35rem 0;
+}
+
+.rich-text-content p:first-child,
+.tiptap-editor .ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.rich-text-content p:last-child,
+.tiptap-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content strong,
+.tiptap-editor .ProseMirror strong {
+  font-weight: 700;
+}
+
+.rich-text-content em,
+.tiptap-editor .ProseMirror em {
+  font-style: italic;
+}
+
+.rich-text-content u,
+.tiptap-editor .ProseMirror u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rich-text-content mark,
+.tiptap-editor .ProseMirror mark {
+  background: rgba(250, 204, 21, 0.3);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.dark .rich-text-content mark,
+.dark .tiptap-editor .ProseMirror mark {
+  background: rgba(250, 204, 21, 0.2);
+}
+
+/* Bullet list */
+.rich-text-content ul,
+.tiptap-editor .ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.35rem 0;
+}
+
+/* Numbered list */
+.rich-text-content ol,
+.tiptap-editor .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.35rem 0;
+}
+
+.rich-text-content li,
+.tiptap-editor .ProseMirror li {
+  margin: 0.2rem 0;
+  padding-left: 0.25rem;
+}
+
+.rich-text-content li > p,
+.tiptap-editor .ProseMirror li > p {
+  margin: 0;
+}
+
+/* Inline code */
+.rich-text-content code,
+.tiptap-editor .ProseMirror code {
+  background: rgb(var(--muted));
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+}

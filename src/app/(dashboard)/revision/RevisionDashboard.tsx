@@ -165,9 +165,22 @@ export default function RevisionDashboard({
                 >
                   <div className="space-y-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-green-500 block">Explanation:</span>
-                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line bg-black/20 p-4 rounded-xl border border-border">
-                      {activeReviewQuestion.answer || "No answer explanation provided."}
-                    </p>
+                    {activeReviewQuestion.answer ? (
+                      /<[a-z][\s\S]*>/i.test(activeReviewQuestion.answer) ? (
+                        <div
+                          className="rich-text-content text-sm leading-relaxed text-muted-foreground bg-black/20 p-4 rounded-xl border border-border"
+                          dangerouslySetInnerHTML={{ __html: activeReviewQuestion.answer }}
+                        />
+                      ) : (
+                        <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line bg-black/20 p-4 rounded-xl border border-border">
+                          {activeReviewQuestion.answer}
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-sm leading-relaxed text-muted-foreground italic bg-black/20 p-4 rounded-xl border border-border">
+                        No answer explanation provided.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-3">

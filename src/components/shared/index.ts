@@ -3,3 +3,4 @@ export { Logo } from "./logo";
 export { GlassCard } from "./glass-card";
 export { AnimatedCounter } from "./animated-counter";
 export { GradientText } from "./gradient-text";
+export { RichTextEditor } from "./rich-text-editor";

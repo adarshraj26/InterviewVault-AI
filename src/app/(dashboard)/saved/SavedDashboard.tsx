@@ -396,7 +396,18 @@ export default function SavedDashboard({
                         <div className="px-5 pb-5 border-t border-border/50 pt-4 space-y-4">
                           <div>
                             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Answer</h4>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.answer || "No answer provided."}</p>
+                            {q.answer ? (
+                              /<[a-z][\s\S]*>/i.test(q.answer) ? (
+                                <div
+                                  className="rich-text-content text-sm leading-relaxed"
+                                  dangerouslySetInnerHTML={{ __html: q.answer }}
+                                />
+                              ) : (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.answer}</p>
+                              )
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">No answer provided.</p>
+                            )}
                           </div>
                           {q.codeExample && (
                             <div className="space-y-2">

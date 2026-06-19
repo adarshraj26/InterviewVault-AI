@@ -47,7 +47,7 @@ export async function getTechnologyBySlug(slug: string) {
     },
     include: {
       questions: {
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: "asc" },
       },
       notes: {
         orderBy: { createdAt: "desc" },
