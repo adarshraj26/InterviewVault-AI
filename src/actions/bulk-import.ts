@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { Difficulty, InterviewFrequency, QuestionTagEnum } from "@prisma/client";
+import { Difficulty, InterviewFrequency } from "@prisma/client";
 import { createTechnology } from "./technologies";
 
 // Slugify function
@@ -397,19 +397,18 @@ interface ImportQuestionInput {
   importStrategy: "insert" | "skip" | "replace" | "keep";
 }
 
-function normalizeTags(tags?: string[]): QuestionTagEnum[] {
-  if (!tags || !Array.isArray(tags)) return [QuestionTagEnum.INTERMEDIATE];
-  const validTags = new Set(Object.values(QuestionTagEnum));
-  const result: QuestionTagEnum[] = [];
+function normalizeTags(tags?: string[]): string[] {
+  if (!tags || !Array.isArray(tags)) return ["INTERMEDIATE"];
+  const result: string[] = [];
   
   for (const tag of tags) {
-    const cleaned = tag.toUpperCase().replace(/\s+/g, "_") as QuestionTagEnum;
-    if (validTags.has(cleaned)) {
+    const cleaned = tag.trim();
+    if (cleaned) {
       result.push(cleaned);
     }
   }
   
-  return result.length > 0 ? result : [QuestionTagEnum.INTERMEDIATE];
+  return result.length > 0 ? result : ["INTERMEDIATE"];
 }
 
 function normalizeDifficulty(diff?: string): Difficulty {

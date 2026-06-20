@@ -2,8 +2,17 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { Difficulty, InterviewFrequency, RevisionStatus, QuestionTagEnum } from "@prisma/client";
+import { Difficulty, InterviewFrequency, RevisionStatus } from "@prisma/client";
 import { createTechnology } from "./technologies";
+
+function serializeQuestion(question: any) {
+  if (!question) return null;
+  return {
+    ...question,
+    createdAt: question.createdAt instanceof Date ? question.createdAt.toISOString() : question.createdAt,
+    updatedAt: question.updatedAt instanceof Date ? question.updatedAt.toISOString() : question.updatedAt,
+  };
+}
 
 export async function getQuestions(technologyId?: string) {
   const session = await auth();
@@ -19,49 +28,19 @@ export async function getQuestions(technologyId?: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  let needsUpdate = false;
-  const { markdownToHtml } = require("@/lib/markdown");
-
-  for (const q of questions) {
-    if (q.answer && !/<[a-z][\s\S]*>/i.test(q.answer)) {
-      const isMarkdown =
-        q.answer.includes("#") ||
-        q.answer.includes("*") ||
-        q.answer.includes("`") ||
-        /^\d+\.\s/m.test(q.answer) ||
-        q.answer.includes("- ");
-      if (isMarkdown) {
-        try {
-          const htmlAnswer = markdownToHtml(q.answer);
-          await db.question.update({
-            where: { id: q.id },
-            data: { answer: htmlAnswer },
-          });
-          q.answer = htmlAnswer;
-          needsUpdate = true;
-        } catch (err) {
-          console.error(`Failed to migrate question ${q.id} to HTML:`, err);
-        }
-      }
-    }
-  }
-
-  if (needsUpdate) {
-    revalidatePath("/technologies");
-    revalidatePath("/revision");
-  }
+  // No auto-migration of markdown to HTML to preserve first-class markdown rendering.
 
   return questions;
 }
 
 export async function createQuestion(data: {
   title: string;
-  answer?: string;
-  codeExample?: string;
-  codeLanguage?: string;
+  answer?: string | null;
+  codeExample?: string | null;
+  codeLanguage?: string | null;
   difficulty: Difficulty;
   interviewFrequency: InterviewFrequency;
-  tags: QuestionTagEnum[];
+  tags: string[];
   technologyId: string;
 }) {
   const session = await auth();
@@ -80,7 +59,7 @@ export async function createQuestion(data: {
     revalidatePath("/technologies");
     revalidatePath("/revision");
     revalidatePath("/dashboard");
-    return { success: true, question };
+    return { success: true, question: serializeQuestion(question) };
   } catch (error) {
     console.error("Create question error:", error);
     return { error: "Failed to create question" };
@@ -91,12 +70,12 @@ export async function updateQuestion(
   id: string,
   data: {
     title?: string;
-    answer?: string;
-    codeExample?: string;
-    codeLanguage?: string;
+    answer?: string | null;
+    codeExample?: string | null;
+    codeLanguage?: string | null;
     difficulty?: Difficulty;
     interviewFrequency?: InterviewFrequency;
-    tags?: QuestionTagEnum[];
+    tags?: string[];
   }
 ) {
   const session = await auth();
@@ -115,10 +94,10 @@ export async function updateQuestion(
 
     revalidatePath("/technologies");
     revalidatePath("/revision");
-    return { success: true, question };
-  } catch (error) {
+    return { success: true, question: serializeQuestion(question) };
+  } catch (error: any) {
     console.error("Update question error:", error);
-    return { error: "Failed to update question" };
+    return { error: `Failed to update question: ${error?.message || error}` };
   }
 }
 
@@ -196,7 +175,7 @@ export async function toggleQuestionPublic(id: string) {
 
     revalidatePath("/community");
     revalidatePath("/technologies");
-    return { success: true, question: updated };
+    return { success: true, question: serializeQuestion(updated) };
   } catch (error) {
     console.error("Toggle public error:", error);
     return { error: "Failed to change question visibility" };
@@ -447,7 +426,7 @@ export async function generateAIQuestions(technologyId: string, technologyName: 
           codeLanguage: null,
           difficulty: Difficulty.MEDIUM,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.INTERMEDIATE, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["INTERMEDIATE", "FREQUENTLY_ASKED"],
           followUpQuestions: ["How do you trace memory leaks?", "What performance metrics are most critical?"]
         },
         {
@@ -457,7 +436,7 @@ export async function generateAIQuestions(technologyId: string, technologyName: 
           codeLanguage: null,
           difficulty: Difficulty.EASY,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.BEGINNER],
+          tags: ["BEGINNER"],
           followUpQuestions: ["What concurrency model is used?", "How is error bubbling handled in async code?"]
         }
       ];
@@ -505,7 +484,7 @@ interface AIParsedQuestion {
   codeLanguage: string | null;
   difficulty: Difficulty;
   interviewFrequency: InterviewFrequency;
-  tags: QuestionTagEnum[];
+  tags: string[];
   technology: string;
 }
 
@@ -962,12 +941,9 @@ export async function formatAnswerAction(questionId: string) {
       return { error: "AI failed to format the answer" };
     }
 
-    const { markdownToHtml } = require("@/lib/markdown");
-    const htmlAnswer = markdownToHtml(formattedText.trim());
-
     const updated = await db.question.update({
       where: { id: questionId },
-      data: { answer: htmlAnswer },
+      data: { answer: formattedText.trim() },
     });
 
     revalidatePath("/technologies");

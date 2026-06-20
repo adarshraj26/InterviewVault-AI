@@ -9,7 +9,7 @@ import {
 } from "@/lib/ai";
 import { createTechnology } from "./technologies";
 import { createQuestion } from "./questions";
-import { Difficulty, InterviewFrequency, QuestionTagEnum } from "@prisma/client";
+import { Difficulty, InterviewFrequency } from "@prisma/client";
 export async function extractTextFromPdfAction(base64String: string) {
   try {
     const dataBuffer = Buffer.from(base64String, "base64");
@@ -41,7 +41,7 @@ interface AIParsedQuestions {
     codeLanguage: string | null;
     difficulty: Difficulty;
     interviewFrequency: InterviewFrequency;
-    tags: QuestionTagEnum[];
+    tags: string[];
     followUpQuestions: string[];
   }[];
 }
@@ -138,7 +138,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
       codeLanguage: null,
       difficulty: Difficulty.MEDIUM,
       interviewFrequency: InterviewFrequency.VERY_COMMON,
-      tags: [QuestionTagEnum.BEGINNER, QuestionTagEnum.INTERMEDIATE],
+      tags: ["BEGINNER", "INTERMEDIATE"],
       followUpQuestions: [
         `How do you optimize performance in a production ${technology} application?`,
         `What are the security best practices when working with ${technology}?`
@@ -151,7 +151,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
       codeLanguage: null,
       difficulty: Difficulty.MEDIUM,
       interviewFrequency: InterviewFrequency.VERY_COMMON,
-      tags: [QuestionTagEnum.INTERMEDIATE],
+      tags: ["INTERMEDIATE"],
       followUpQuestions: [
         `What are the differences between local and global state in this ecosystem?`,
         `Can you describe a scenario where state synchronization becomes bottlenecked?`
@@ -164,7 +164,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
       codeLanguage: null,
       difficulty: Difficulty.EASY,
       interviewFrequency: InterviewFrequency.COMMON,
-      tags: [QuestionTagEnum.BEGINNER],
+      tags: ["BEGINNER"],
       followUpQuestions: [
         `How do you configure logging in a production environment?`,
         `What unit testing frameworks do you prefer for testing ${technology}?`
@@ -182,7 +182,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
           codeLanguage: "javascript",
           difficulty: Difficulty.MEDIUM,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.INTERMEDIATE, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["INTERMEDIATE", "FREQUENTLY_ASKED"],
           followUpQuestions: [
             "What is the time complexity of React's reconciliation diffing algorithm?",
             "How do 'keys' help React during reconciliation?"
@@ -195,7 +195,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
           codeLanguage: "javascript",
           difficulty: Difficulty.MEDIUM,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.INTERMEDIATE, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["INTERMEDIATE", "FREQUENTLY_ASKED"],
           followUpQuestions: [
             "When should you avoid using useMemo or useCallback?",
             "What happens if you omit the dependency array in useEffect?"
@@ -208,7 +208,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
           codeLanguage: "javascript",
           difficulty: Difficulty.EASY,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.BEGINNER, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["BEGINNER", "FREQUENTLY_ASKED"],
           followUpQuestions: [
             "Does Context API trigger re-renders for all consumer components?",
             "What is the difference between Context API and Redux?"
@@ -228,7 +228,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
           codeLanguage: "javascript",
           difficulty: Difficulty.MEDIUM,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.INTERMEDIATE, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["INTERMEDIATE", "FREQUENTLY_ASKED"],
           followUpQuestions: [
             "How do closures affect garbage collection and memory usage?",
             "Can you explain the lexical scope chain in JavaScript?"
@@ -241,7 +241,7 @@ function getFallbackQuestions(technology: string): AIParsedQuestions {
           codeLanguage: "javascript",
           difficulty: Difficulty.HARD,
           interviewFrequency: InterviewFrequency.VERY_COMMON,
-          tags: [QuestionTagEnum.ADVANCED, QuestionTagEnum.FREQUENTLY_ASKED],
+          tags: ["ADVANCED", "FREQUENTLY_ASKED"],
           followUpQuestions: [
             "What is the difference between process.nextTick and Promise.then in Node.js?",
             "How does rendering paint cycle fit into the event loop?"

@@ -365,6 +365,9 @@ export default function TechnologiesPage() {
 
                     {/* Name & Stats */}
                     <h3 className="text-lg font-semibold mb-1">{tech.name}</h3>
+                    <p className="text-xs text-muted-foreground/80 line-clamp-2 min-h-[2.25rem] mb-3 leading-relaxed">
+                      {tech.description || "Explore customized questions and preparation resources."}
+                    </p>
                     <p className="text-xs text-muted-foreground mb-4">
                       {masteredCount}/{questionsCount} questions mastered
                     </p>

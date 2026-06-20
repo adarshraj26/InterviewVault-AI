@@ -5,7 +5,7 @@
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
 export type InterviewFrequency = "RARE" | "COMMON" | "VERY_COMMON";
 export type RevisionStatus = "NOT_STARTED" | "LEARNING" | "REVISED_ONCE" | "MASTERED";
-export type QuestionTag = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "FREQUENTLY_ASKED";
+export type QuestionTag = string;
 export type UserRole = "USER" | "ADMIN";
 export type NoteType = "INTERVIEW_NOTES" | "CHEAT_SHEET" | "QUICK_REVISION";
 export type SubscriptionPlan = "FREE" | "PRO";

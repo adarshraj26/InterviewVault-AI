@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   ChevronRight,
   Code2,
   Copy,
@@ -26,10 +27,16 @@ import {
   Square,
   X,
   MinusSquare,
+  BookOpen,
+  Eye,
+  FileCode,
+  Type,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { GlassCard, RichTextEditor } from "@/components/shared";
+import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
 import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction } from "@/actions/questions";
@@ -151,6 +158,13 @@ export default function TechnologyWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
+  
+  // Layout View: grid or list
+  const [layoutView, setLayoutView] = useState<"grid" | "list">("grid");
+  // Pagination & Sorting
+  const [pageSize, setPageSize] = useState<number | "all">(9);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortOption, setSortOption] = useState<string>("default");
 
   // Expanded and Copied states
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -166,6 +180,13 @@ export default function TechnologyWorkspacePage() {
   const [difficulty, setDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
   const [frequency, setFrequency] = useState<"RARE" | "COMMON" | "VERY_COMMON">("COMMON");
   const [selectedTags, setSelectedTags] = useState<string[]>(["INTERMEDIATE"]);
+  const [availableTags, setAvailableTags] = useState<string[]>([
+    "BEGINNER",
+    "INTERMEDIATE",
+    "ADVANCED",
+    "FREQUENTLY_ASKED",
+  ]);
+  const [newTag, setNewTag] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Technology Workspace states
@@ -190,6 +211,13 @@ export default function TechnologyWorkspacePage() {
   const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
 
   const [formattingId, setFormattingId] = useState<string | null>(null);
+
+  // Detail view state (FrontendPrep.io-style full article)
+  const [detailViewQuestion, setDetailViewQuestion] = useState<any | null>(null);
+
+  // Editor mode: 'richtext' or 'markdown'
+  const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("markdown");
+  const [markdownPreview, setMarkdownPreview] = useState(false);
 
   const handleFormatAnswer = async (questionId: string) => {
     setFormattingId(questionId);
@@ -310,6 +338,25 @@ export default function TechnologyWorkspacePage() {
     loadData();
   }, [slug]);
 
+  useEffect(() => {
+    if (questions.length > 0) {
+      const allTags = new Set([
+        "BEGINNER",
+        "INTERMEDIATE",
+        "ADVANCED",
+        "FREQUENTLY_ASKED",
+      ]);
+      questions.forEach((q) => {
+        if (q.tags) {
+          q.tags.forEach((t: string) => {
+            if (t) allTags.add(t);
+          });
+        }
+      });
+      setAvailableTags(Array.from(allTags));
+    }
+  }, [questions]);
+
   const handleCopy = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
@@ -325,6 +372,7 @@ export default function TechnologyWorkspacePage() {
     setDifficulty("MEDIUM");
     setFrequency("COMMON");
     setSelectedTags(["INTERMEDIATE"]);
+    setEditorMode("markdown");
     setIsModalOpen(true);
   };
 
@@ -337,6 +385,14 @@ export default function TechnologyWorkspacePage() {
     setDifficulty(q.difficulty);
     setFrequency(q.interviewFrequency);
     setSelectedTags(q.tags || []);
+    
+    // Auto-detect editor mode based on content format
+    if (q.answer && isHtmlContent(q.answer)) {
+      setEditorMode("richtext");
+    } else {
+      setEditorMode("markdown");
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -383,9 +439,9 @@ export default function TechnologyWorkspacePage() {
         // Edit mode
         const res = await updateQuestion(editTarget.id, {
           title,
-          answer: answer.trim() || undefined,
-          codeExample: codeExample.trim() || undefined,
-          codeLanguage: codeExample.trim() ? codeLanguage : undefined,
+          answer: answer.trim() || null,
+          codeExample: editorMode === "markdown" ? null : (codeExample.trim() || null),
+          codeLanguage: editorMode === "markdown" ? null : (codeExample.trim() ? codeLanguage : null),
           difficulty,
           interviewFrequency: frequency,
           tags: selectedTags as any[],
@@ -401,9 +457,9 @@ export default function TechnologyWorkspacePage() {
         // Create mode
         const res = await createQuestion({
           title,
-          answer: answer.trim() || undefined,
-          codeExample: codeExample.trim() || undefined,
-          codeLanguage: codeExample.trim() ? codeLanguage : undefined,
+          answer: answer.trim() || null,
+          codeExample: editorMode === "markdown" ? null : (codeExample.trim() || null),
+          codeLanguage: editorMode === "markdown" ? null : (codeExample.trim() ? codeLanguage : null),
           difficulty,
           interviewFrequency: frequency,
           tags: selectedTags as any[],
@@ -425,8 +481,8 @@ export default function TechnologyWorkspacePage() {
       setCodeExample("");
       setSelectedTags(["INTERMEDIATE"]);
       loadData();
-    } catch (err) {
-      toast.error(editTarget ? "Failed to update question" : "Failed to create question");
+    } catch (err: any) {
+      toast.error(err?.message || (editTarget ? "Failed to update question" : "Failed to create question"));
     } finally {
       setSubmitting(false);
     }
@@ -477,6 +533,23 @@ export default function TechnologyWorkspacePage() {
     );
   };
 
+  const handleAddCustomTag = () => {
+    const cleaned = newTag.trim();
+    if (!cleaned) return;
+
+    const formattedTag = cleaned.toUpperCase().replace(/[\s-]+/g, "_");
+    
+    if (!availableTags.includes(formattedTag)) {
+      setAvailableTags((prev) => [...prev, formattedTag]);
+    }
+    
+    if (!selectedTags.includes(formattedTag)) {
+      setSelectedTags((prev) => [...prev, formattedTag]);
+    }
+    
+    setNewTag("");
+  };
+
   const filteredQuestions = questions.filter((q) => {
     const matchesSearch =
       q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -487,6 +560,35 @@ export default function TechnologyWorkspacePage() {
 
     return matchesSearch && matchesDifficulty;
   });
+
+  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
+    if (sortOption === "newest") {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    if (sortOption === "oldest") {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    if (sortOption === "title-asc") {
+      return a.title.localeCompare(b.title);
+    }
+    if (sortOption === "difficulty-asc") {
+      const order = { EASY: 1, MEDIUM: 2, HARD: 3 };
+      return (order[a.difficulty as keyof typeof order] || 0) - (order[b.difficulty as keyof typeof order] || 0);
+    }
+    if (sortOption === "difficulty-desc") {
+      const order = { EASY: 1, MEDIUM: 2, HARD: 3 };
+      return (order[b.difficulty as keyof typeof order] || 0) - (order[a.difficulty as keyof typeof order] || 0);
+    }
+    return 0; // Default sorting (createdAt asc from Prisma)
+  });
+
+  const totalItems = sortedQuestions.length;
+  const numericPageSize = pageSize === "all" ? totalItems : pageSize;
+  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+  const startIndex = (activePage - 1) * numericPageSize;
+  const endIndex = Math.min(startIndex + numericPageSize, totalItems);
+  const paginatedQuestions = sortedQuestions.slice(startIndex, endIndex);
 
   const masteredCount = questions.filter((q) => q.revisionStatus === "MASTERED").length;
   const progressPercent = questions.length > 0 ? Math.round((masteredCount / questions.length) * 100) : 0;
@@ -549,24 +651,17 @@ export default function TechnologyWorkspacePage() {
                   <Pencil className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-muted-foreground">
+              {tech.description && (
+                <p className="text-sm text-muted-foreground/80 mt-1.5 max-w-2xl leading-relaxed">
+                  {tech.description}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground/60 mt-2">
                 {questions.length} questions · {masteredCount} mastered · {progressPercent}% ready
               </p>
             </div>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={handleGenerateAI}
-              disabled={generating}
-              className="flex items-center gap-2 glass px-4 py-2.5 rounded-xl hover:bg-muted/80 transition-all text-sm font-medium disabled:opacity-50 cursor-pointer"
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              ) : (
-                <Sparkles className="h-4 w-4 text-primary" />
-              )}
-              Generate with AI
-            </button>
             <div className="relative">
               <button
                 onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
@@ -637,57 +732,160 @@ export default function TechnologyWorkspacePage() {
         </div>
       </motion.div>
 
-      {/* Difficulty Tabs */}
-      <motion.div variants={fadeInUp} className="flex items-center gap-2 overflow-x-auto pb-2">
-        {[
-          { label: "All Questions", value: "ALL" },
-          { label: "Easy", value: "EASY" },
-          { label: "Medium", value: "MEDIUM" },
-          { label: "Hard", value: "HARD" },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setDifficultyFilter(tab.value)}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer",
-              difficultyFilter === tab.value
-                ? "gradient-bg text-white shadow-lg shadow-primary/25"
-                : "glass hover:bg-muted text-muted-foreground"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Filters, Page Size & Layout Toggles */}
+      <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/20">
+        {/* Difficulty Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {[
+            { label: "All Levels", value: "ALL" },
+            { label: "Easy", value: "EASY" },
+            { label: "Medium", value: "MEDIUM" },
+            { label: "Hard", value: "HARD" },
+          ].map((tab) => {
+            const count = questions.filter(
+              (q) => (tab.value === "ALL" || q.difficulty === tab.value)
+            ).length;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setDifficultyFilter(tab.value);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
+                  difficultyFilter === tab.value
+                    ? "gradient-bg text-white shadow-lg shadow-primary/25"
+                    : "glass hover:bg-muted text-muted-foreground"
+                )}
+              >
+                <span>{tab.label}</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-md font-bold",
+                  difficultyFilter === tab.value
+                    ? "bg-white/20 text-white"
+                    : "bg-muted-foreground/10 text-muted-foreground"
+                )}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Page Size & Layout view switch */}
+        <div className="flex items-center gap-4 shrink-0 self-end md:self-auto">
+          {/* Show X per page */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider text-[10px]">Show</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === "all" ? "all" : Number(val));
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-border bg-[#0f1422] pl-3 pr-8 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none relative"
+              style={{
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.75rem center',
+                backgroundSize: '1rem',
+              }}
+            >
+              <option value={9} className="bg-[#0f1422]">9 per page</option>
+              <option value={18} className="bg-[#0f1422]">18 per page</option>
+              <option value={27} className="bg-[#0f1422]">27 per page</option>
+              <option value="all" className="bg-[#0f1422]">All questions</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-semibold">Layout View</span>
+            <div className="flex items-center p-0.5 rounded-xl bg-black/20 border border-border/50">
+              <button
+                type="button"
+                onClick={() => setLayoutView("grid")}
+                className={cn(
+                  "p-1.5 rounded-lg transition-all cursor-pointer",
+                  layoutView === "grid"
+                    ? "bg-primary/15 text-primary border border-primary/20 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Grid View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayoutView("list")}
+                className={cn(
+                  "p-1.5 rounded-lg transition-all cursor-pointer",
+                  layoutView === "list"
+                    ? "bg-primary/15 text-primary border border-primary/20 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="List View"
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
-      {/* Search Bar */}
-      <motion.div variants={fadeInUp} className="flex items-center gap-3">
+      {/* Search Bar & Sorting */}
+      <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search questions..."
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder={`Search ${tech.name} questions...`}
             className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
           />
         </div>
-        {/* Multi-select toggle */}
-        {questions.length > 0 && (
-          <button
-            onClick={toggleSelectMode}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer border whitespace-nowrap",
-              isSelectMode
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "glass border-border hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-            )}
-            title={isSelectMode ? "Exit selection mode" : "Select multiple questions"}
+        <div className="flex items-center gap-3 shrink-0">
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="rounded-xl border border-border bg-card pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer appearance-none relative"
+            style={{
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 0.75rem center',
+              backgroundSize: '1rem',
+            }}
           >
-            {isSelectMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
-            {isSelectMode ? "Cancel" : "Select"}
-          </button>
-        )}
+            <option value="default" className="bg-[#0f1422]">Default Sorting</option>
+            <option value="newest" className="bg-[#0f1422]">Newest First</option>
+            <option value="oldest" className="bg-[#0f1422]">Oldest First</option>
+            <option value="title-asc" className="bg-[#0f1422]">Title (A-Z)</option>
+            <option value="difficulty-asc" className="bg-[#0f1422]">Difficulty (Easy to Hard)</option>
+            <option value="difficulty-desc" className="bg-[#0f1422]">Difficulty (Hard to Easy)</option>
+          </select>
+
+          {/* Multi-select toggle */}
+          {questions.length > 0 && (
+            <button
+              onClick={toggleSelectMode}
+              className={cn(
+                "flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer border whitespace-nowrap",
+                isSelectMode
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "glass border-border hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+              )}
+              title={isSelectMode ? "Exit selection mode" : "Select multiple questions"}
+            >
+              {isSelectMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+              {isSelectMode ? "Cancel" : "Select"}
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* Select All bar + floating action bar */}
@@ -735,7 +933,7 @@ export default function TechnologyWorkspacePage() {
         )}
       </AnimatePresence>
 
-      {/* Questions List */}
+      {/* Questions Render (Grid/List Conditional) */}
       {filteredQuestions.length === 0 ? (
         <div className="text-center py-12 bg-card/20 border border-border/50 rounded-2xl p-8">
           <AlertCircle className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
@@ -746,9 +944,122 @@ export default function TechnologyWorkspacePage() {
               : "No questions match your search filters."}
           </p>
         </div>
+      ) : layoutView === "grid" ? (
+        /* Grid View Layout */
+        <motion.div
+          variants={staggerContainer}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {paginatedQuestions.map((q, index) => {
+            const cleanAnswer = q.answer
+              ? q.answer
+                  .replace(/<[^>]*>/g, "") // remove HTML tags
+                  .replace(/\s+/g, " ") // normalize spacing
+                  .trim()
+              : "";
+              
+            return (
+              <motion.div
+                key={q.id}
+                variants={fadeInUp}
+                onClick={() => {
+                  if (isSelectMode) {
+                    toggleSelectQuestion(q.id);
+                  } else {
+                    setDetailViewQuestion(q);
+                  }
+                }}
+                className="group relative cursor-pointer"
+              >
+                <GlassCard hover className={cn(
+                  "h-full flex flex-col justify-between overflow-hidden p-6 relative group border transition-all duration-300",
+                  isSelectMode && selectedIds.has(q.id) ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/5" : "border-border/60 hover:border-primary/40"
+                )}>
+                  <div>
+                    {/* Header: Tech Name and Difficulty */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        {isSelectMode && (
+                          <span className="p-0.5 text-primary shrink-0 transition-colors">
+                            {selectedIds.has(q.id) ? (
+                              <CheckSquare className="h-4.5 w-4.5 text-primary" />
+                            ) : (
+                              <Square className="h-4.5 w-4.5 text-muted-foreground hover:text-primary" />
+                            )}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold tracking-widest text-primary uppercase">
+                          {tech.name}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                        q.difficulty === "EASY"
+                          ? "bg-green-500/10 border-green-500/20 text-green-400"
+                          : q.difficulty === "HARD"
+                            ? "bg-red-500/10 border-red-500/20 text-red-400"
+                            : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+                      )}>
+                        {q.difficulty}
+                      </span>
+                    </div>
+
+                    {/* Question Title */}
+                    <h3 className="text-base font-bold mb-3 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
+                      {q.title}
+                    </h3>
+
+                    {/* Answer Snippet */}
+                    <p className="text-xs text-muted-foreground/80 line-clamp-3 leading-relaxed mb-6">
+                      {cleanAnswer || "No answer explanation provided."}
+                    </p>
+                  </div>
+
+                  {/* Card Footer: Tags & Info */}
+                  <div className="mt-auto space-y-3 pt-3 border-t border-border/30">
+                    <div className="flex flex-wrap gap-1.5">
+                      {q.tags && q.tags.slice(0, 2).map((tag: string) => (
+                        <span key={tag} className="text-[9px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/10">
+                          {tag.replace("_", " ")}
+                        </span>
+                      ))}
+                      <span className="text-[9px] font-semibold text-muted-foreground self-center ml-auto">
+                        {q.interviewFrequency === "VERY_COMMON" ? "🔥 Very Common" : q.interviewFrequency === "COMMON" ? "📌 Common" : "💤 Rare"}
+                      </span>
+                    </div>
+
+                    {/* Inline edit/delete actions */}
+                    <div className="flex items-center justify-between pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] text-primary/70 font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                        Read full article <ArrowRight className="h-3 w-3" />
+                      </span>
+                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleStartEditQuestion(q)}
+                          className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget({ id: q.id, title: q.title })}
+                          className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            );
+          })}
+        </motion.div>
       ) : (
+        /* List View (Accordion Cards) Layout */
         <motion.div variants={staggerContainer} className="space-y-3">
-          {filteredQuestions.map((q, index) => (
+          {paginatedQuestions.map((q, index) => (
             <motion.div key={q.id} variants={fadeInUp}>
               <GlassCard className="p-0 overflow-hidden">
                 {/* Question Header (clickable) */}
@@ -782,7 +1093,7 @@ export default function TechnologyWorkspacePage() {
                           )}
                         </button>
                       ) : (
-                        <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{index + 1}.</span>
+                        <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{startIndex + index + 1}.</span>
                       )}
                       <h3 className="font-semibold text-sm sm:text-base">{q.title}</h3>
                       {q.isPublic && (
@@ -870,24 +1181,26 @@ export default function TechnologyWorkspacePage() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold text-muted-foreground">Answer</h4>
-                            {q.answer && (
-                              <button
-                                onClick={() => handleFormatAnswer(q.id)}
-                                disabled={formattingId === q.id}
-                                className="inline-flex items-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer disabled:opacity-40"
-                                title="Format Answer with AI"
-                              >
-                                {formattingId === q.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                )}
-                                <span>Format Answer</span>
-                              </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {q.answer && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailViewQuestion(q);
+                                  }}
+                                  className="inline-flex items-center gap-1 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                                  title="Read Full Article"
+                                >
+                                  <BookOpen className="h-3.5 w-3.5" />
+                                  <span>Read Full</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           {q.answer ? (
-                            isHtmlContent(q.answer) ? (
+                            isMarkdownContent(q.answer) ? (
+                              <MarkdownRenderer content={q.answer} />
+                            ) : isHtmlContent(q.answer) ? (
                               <div
                                 className="rich-text-content text-sm leading-relaxed"
                                 dangerouslySetInnerHTML={{ __html: q.answer }}
@@ -907,32 +1220,9 @@ export default function TechnologyWorkspacePage() {
                               <Code2 className="h-3.5 w-3.5" />
                               Code Example
                             </h4>
-                            
-                            <div className="rounded-xl border border-border bg-[#030712] overflow-hidden shadow-2xl">
-                              {/* Code Window Header */}
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-[#0b0f19] border-b border-border/40">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                                  <Code2 className="h-3.5 w-3.5 text-primary" />
-                                  <span>{q.codeLanguage ? (languageNames[q.codeLanguage.toLowerCase()] || q.codeLanguage) : "Code"}</span>
-                                </div>
-                                <button
-                                  onClick={() => handleCopy(q.codeExample!, q.id)}
-                                  className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                                  title="Copy Code"
-                                >
-                                  {copiedId === q.id ? (
-                                    <Check className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-4 w-4" />
-                                  )}
-                                </button>
-                              </div>
-                              
-                              {/* Code Window Body */}
-                              <pre className="p-4 sm:p-5 overflow-x-auto text-xs sm:text-sm font-mono text-slate-100 bg-[#090d16] leading-relaxed">
-                                <code dangerouslySetInnerHTML={{ __html: highlightCode(q.codeExample, q.codeLanguage || "javascript") }} />
-                              </pre>
-                            </div>
+                            <MarkdownRenderer
+                              content={`\`\`\`${q.codeLanguage || "javascript"}\n${q.codeExample}\n\`\`\``}
+                            />
                           </div>
                         )}
                       </div>
@@ -942,6 +1232,62 @@ export default function TechnologyWorkspacePage() {
               </GlassCard>
             </motion.div>
           ))}
+        </motion.div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <motion.div
+          variants={fadeInUp}
+          className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-border/30 mt-8"
+        >
+          <span className="text-xs text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+            <span className="font-semibold text-foreground">{endIndex}</span> of{" "}
+            <span className="font-semibold text-foreground">{totalItems}</span> questions
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={activePage === 1}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold glass border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer transition-all"
+            >
+              Previous
+            </button>
+            
+            {Array.from({ length: totalPages }).map((_, i) => {
+              const pNum = i + 1;
+              if (totalPages > 6 && Math.abs(activePage - pNum) > 1 && pNum !== 1 && pNum !== totalPages) {
+                if (pNum === 2 || pNum === totalPages - 1) {
+                  return <span key={pNum} className="text-xs text-muted-foreground px-1" style={{ pointerEvents: 'none' }}>...</span>;
+                }
+                return null;
+              }
+              return (
+                <button
+                  key={pNum}
+                  onClick={() => setCurrentPage(pNum)}
+                  className={cn(
+                    "w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                    activePage === pNum
+                      ? "gradient-bg text-white shadow-md shadow-primary/25"
+                      : "glass border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {pNum}
+                </button>
+              );
+            })}
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={activePage === totalPages}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold glass border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer transition-all"
+            >
+              Next
+            </button>
+          </div>
         </motion.div>
       )}
 
@@ -982,39 +1328,123 @@ export default function TechnologyWorkspacePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Answer</label>
-                  <RichTextEditor
-                    value={answer}
-                    onChange={(html) => setAnswer(html)}
-                    placeholder="Provide the comprehensive answer..."
-                    minHeight="140px"
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium">Answer</label>
+                    <div className="flex items-center gap-1 p-0.5 rounded-lg bg-black/20 border border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditorMode("markdown");
+                          setMarkdownPreview(false);
+                          setCodeExample("");
+                        }}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer",
+                          editorMode === "markdown"
+                            ? "bg-primary/15 text-primary border border-primary/20 shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <FileCode className="h-3 w-3" />
+                        Markdown
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorMode("richtext")}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer",
+                          editorMode === "richtext"
+                            ? "bg-primary/15 text-primary border border-primary/20 shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Type className="h-3 w-3" />
+                        Rich Text
+                      </button>
+                    </div>
+                  </div>
+
+                  {editorMode === "markdown" ? (
+                    <div className="space-y-2">
+                      {/* Markdown toolbar */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <span>Use</span>
+                          <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono"># Heading</code>
+                          <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">```js```</code>
+                          <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">&gt; quote</code>
+                          <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">**bold**</code>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMarkdownPreview(!markdownPreview)}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border",
+                            markdownPreview
+                              ? "bg-primary/10 border-primary/20 text-primary"
+                              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          )}
+                        >
+                          <Eye className="h-3 w-3" />
+                          Preview
+                        </button>
+                      </div>
+
+                      {markdownPreview ? (
+                        <div className="min-h-[140px] max-h-[400px] overflow-y-auto rounded-xl border border-border bg-black/10 p-4">
+                          {answer.trim() ? (
+                            <MarkdownRenderer content={answer} />
+                          ) : (
+                            <p className="text-sm text-muted-foreground/50 italic">Nothing to preview yet...</p>
+                          )}
+                        </div>
+                      ) : (
+                        <textarea
+                          value={answer}
+                          onChange={(e) => setAnswer(e.target.value)}
+                          placeholder={`# Question Title\n\nExplanation goes here...\n\n## Key Concept\n\n> Important interview point\n\n\`\`\`javascript\nconst example = "code here";\n\`\`\`\n\n- Point 1\n- Point 2`}
+                          className="w-full min-h-[180px] rounded-xl border border-border bg-black/20 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-y leading-relaxed"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <RichTextEditor
+                      value={answer}
+                      onChange={(html) => setAnswer(html)}
+                      placeholder="Provide the comprehensive answer..."
+                      minHeight="140px"
+                    />
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Code Example (Optional)</label>
-                  <textarea
-                    value={codeExample}
-                    onChange={(e) => setCodeExample(e.target.value)}
-                    placeholder="Paste sample code snippet here..."
-                    className="w-full h-24 rounded-xl border border-border bg-black/20 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-none"
-                  />
-                </div>
-                {codeExample.trim() && (
+
+                {/* Code Example — only show when NOT in markdown mode */}
+                {editorMode !== "markdown" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Code Example (Optional)</label>
+                    <textarea
+                      value={codeExample}
+                      onChange={(e) => setCodeExample(e.target.value)}
+                      placeholder="Paste sample code snippet here..."
+                      className="w-full h-24 rounded-xl border border-border bg-black/20 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-none"
+                    />
+                  </div>
+                )}
+                {editorMode !== "markdown" && codeExample.trim() && (
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Code Language</label>
                     <select
                       value={codeLanguage}
                       onChange={(e) => setCodeLanguage(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
                     >
-                      <option value="javascript">JavaScript</option>
-                      <option value="typescript">TypeScript</option>
-                      <option value="python">Python</option>
-                      <option value="sql">SQL</option>
-                      <option value="html">HTML</option>
-                      <option value="css">CSS</option>
-                      <option value="java">Java</option>
-                      <option value="cpp">C++</option>
+                      <option value="javascript" className="bg-[#0f1422] text-foreground">JavaScript</option>
+                      <option value="typescript" className="bg-[#0f1422] text-foreground">TypeScript</option>
+                      <option value="python" className="bg-[#0f1422] text-foreground">Python</option>
+                      <option value="sql" className="bg-[#0f1422] text-foreground">SQL</option>
+                      <option value="html" className="bg-[#0f1422] text-foreground">HTML</option>
+                      <option value="css" className="bg-[#0f1422] text-foreground">CSS</option>
+                      <option value="java" className="bg-[#0f1422] text-foreground">Java</option>
+                      <option value="cpp" className="bg-[#0f1422] text-foreground">C++</option>
                     </select>
                   </div>
                 )}
@@ -1024,11 +1454,11 @@ export default function TechnologyWorkspacePage() {
                     <select
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
                     >
-                      <option value="EASY">Easy</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HARD">Hard</option>
+                      <option value="EASY" className="bg-[#0f1422] text-foreground">Easy</option>
+                      <option value="MEDIUM" className="bg-[#0f1422] text-foreground">Medium</option>
+                      <option value="HARD" className="bg-[#0f1422] text-foreground">Hard</option>
                     </select>
                   </div>
                   <div>
@@ -1036,18 +1466,18 @@ export default function TechnologyWorkspacePage() {
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
                     >
-                      <option value="RARE">Rare</option>
-                      <option value="COMMON">Common</option>
-                      <option value="VERY_COMMON">Very Common</option>
+                      <option value="RARE" className="bg-[#0f1422] text-foreground">Rare</option>
+                      <option value="COMMON" className="bg-[#0f1422] text-foreground">Common</option>
+                      <option value="VERY_COMMON" className="bg-[#0f1422] text-foreground">Very Common</option>
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Tags (Select all that apply)</label>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Tags (Select all that apply)</label>
                   <div className="flex flex-wrap gap-2">
-                    {["BEGINNER", "INTERMEDIATE", "ADVANCED", "FREQUENTLY_ASKED"].map((tag) => (
+                    {availableTags.map((tag) => (
                       <button
                         type="button"
                         key={tag}
@@ -1062,6 +1492,29 @@ export default function TechnologyWorkspacePage() {
                         {tag.replace("_", " ")}
                       </button>
                     ))}
+                  </div>
+                  {/* Custom tag input */}
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Add custom tag (e.g., React Hooks)"
+                      className="flex-1 rounded-xl border border-border bg-black/20 px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomTag();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomTag}
+                      className="px-3.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
+                    >
+                      Add Tag
+                    </button>
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
@@ -1260,6 +1713,17 @@ export default function TechnologyWorkspacePage() {
         currentWorkspaceName={tech?.name}
         onImportComplete={loadData}
       />
+
+      {/* FrontendPrep.io-style Full Article Detail View */}
+      <AnimatePresence>
+        {detailViewQuestion && (
+          <QuestionDetailView
+            question={detailViewQuestion}
+            technologyName={tech?.name || ""}
+            onClose={() => setDetailViewQuestion(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

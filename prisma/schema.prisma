@@ -36,12 +36,6 @@ enum RevisionStatus {
   MASTERED
 }
 
-enum QuestionTagEnum {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-  FREQUENTLY_ASKED
-}
 
 enum NoteType {
   INTERVIEW_NOTES
@@ -191,7 +185,7 @@ model Question {
   theoryExample      String?            @db.Text
   difficulty         Difficulty         @default(MEDIUM)
   interviewFrequency InterviewFrequency @default(COMMON)
-  tags               QuestionTagEnum[]
+  tags               String[]
   revisionStatus     RevisionStatus     @default(NOT_STARTED)
   isPublic           Boolean            @default(false)
   followUpQuestions  String[]
