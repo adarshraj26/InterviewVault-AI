@@ -10,6 +10,7 @@ import { TECH_ICONS } from "@/constants";
 import { getTechnologies, createTechnology, deleteTechnology, updateTechnology } from "@/actions/technologies";
 import { importMarkdownQuestionsAction, recategorizeGeneralQuestionsAction } from "@/actions/questions";
 import { toast } from "sonner";
+import { BulkImportModal } from "./[slug]/BulkImportModal";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -268,7 +269,7 @@ export default function TechnologiesPage() {
             className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2.5 rounded-xl transition-all text-sm font-semibold cursor-pointer"
           >
             <Upload className="h-4 w-4" />
-            Import (.md)
+            Import Questions
           </button>
           <button
             onClick={handleStartCreateTech}
@@ -534,147 +535,12 @@ export default function TechnologiesPage() {
         )}
       </AnimatePresence>
 
-      {/* Import Questions Modal */}
-      <AnimatePresence>
-        {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsImportModalOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-
-            {/* Modal Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg overflow-hidden rounded-2xl glass-strong border border-border p-6 shadow-2xl relative z-10"
-            >
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                Import Questions from Markdown (.md)
-              </h2>
-
-              <div className="mb-5 bg-primary/5 border border-primary/10 rounded-xl p-3.5 text-xs text-muted-foreground leading-relaxed">
-                <p className="font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
-                  AI-Powered Import & Auto-Routing
-                </p>
-                Upload any Markdown question list. The AI parses the questions and automatically determines the category:
-                <ul className="list-disc pl-4 mt-1.5 space-y-1">
-                  <li><strong>Single Category:</strong> If all questions are about one technology, they will be grouped into that workspace.</li>
-                  <li><strong>Mixed Categories:</strong> If questions cover different stacks, the AI automatically analyzes and files them into their respective workspaces, creating new technology categories if needed.</li>
-                </ul>
-              </div>
-
-              <input 
-                type="file" 
-                ref={mdFileInputRef} 
-                onChange={handleMdFileChange} 
-                accept=".md" 
-                className="hidden" 
-              />
-
-              {!showMdPaste ? (
-                <div 
-                  onClick={handleMdBrowseClick}
-                  className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
-                >
-                  <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm font-medium mb-1">Drag and drop your questions list (.md) here</p>
-                  <p className="text-xs text-muted-foreground mb-6">Supports single or mixed tech stack questions</p>
-                  <div className="flex gap-3 justify-center">
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMdBrowseClick();
-                      }}
-                      className="gradient-bg text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all shadow-lg shadow-primary/25 cursor-pointer"
-                    >
-                      Browse File
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMdPaste(true);
-                      }}
-                      className="bg-muted hover:bg-muted/80 text-foreground px-5 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      Paste Markdown
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold uppercase tracking-wider text-primary block">
-                      Paste Markdown Q&A List
-                    </label>
-                    <button 
-                      onClick={() => setShowMdPaste(false)}
-                      className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      Use File Upload
-                    </button>
-                  </div>
-                  
-                  <textarea
-                    value={mdText}
-                    onChange={(e) => setMdText(e.target.value)}
-                    placeholder="Paste your markdown containing questions & answers here. Use '##' or '###' for question headings, and write the answer beneath."
-                    className="w-full h-48 p-3 bg-black/30 border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-sm resize-none font-mono"
-                  />
-                  
-                  <div className="flex justify-end gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsImportModalOpen(false)}
-                      className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleManualImportMd}
-                      disabled={mdLoading}
-                      className="gradient-bg text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      {mdLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Import Questions
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {!showMdPaste && (
-                <div className="flex justify-end gap-3 pt-4 border-t border-border/50 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsImportModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Smart Bulk Import Modal */}
+      <BulkImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={loadTechnologies}
+      />
     </motion.div>
   );
 }

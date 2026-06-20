@@ -11,13 +11,47 @@ export async function getQuestions(technologyId?: string) {
     throw new Error("Unauthorized");
   }
 
-  return await db.question.findMany({
+  const questions = await db.question.findMany({
     where: {
       userId: session.user.id,
       ...(technologyId ? { technologyId } : {}),
     },
     orderBy: { createdAt: "desc" },
   });
+
+  let needsUpdate = false;
+  const { markdownToHtml } = require("@/lib/markdown");
+
+  for (const q of questions) {
+    if (q.answer && !/<[a-z][\s\S]*>/i.test(q.answer)) {
+      const isMarkdown =
+        q.answer.includes("#") ||
+        q.answer.includes("*") ||
+        q.answer.includes("`") ||
+        /^\d+\.\s/m.test(q.answer) ||
+        q.answer.includes("- ");
+      if (isMarkdown) {
+        try {
+          const htmlAnswer = markdownToHtml(q.answer);
+          await db.question.update({
+            where: { id: q.id },
+            data: { answer: htmlAnswer },
+          });
+          q.answer = htmlAnswer;
+          needsUpdate = true;
+        } catch (err) {
+          console.error(`Failed to migrate question ${q.id} to HTML:`, err);
+        }
+      }
+    }
+  }
+
+  if (needsUpdate) {
+    revalidatePath("/technologies");
+    revalidatePath("/revision");
+  }
+
+  return questions;
 }
 
 export async function createQuestion(data: {
@@ -109,6 +143,34 @@ export async function deleteQuestion(id: string) {
   } catch (error) {
     console.error("Delete question error:", error);
     return { error: "Failed to delete question" };
+  }
+}
+
+export async function deleteMultipleQuestions(ids: string[]) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Unauthorized" };
+  }
+
+  if (!ids || ids.length === 0) {
+    return { error: "No questions selected" };
+  }
+
+  try {
+    const result = await db.question.deleteMany({
+      where: {
+        id: { in: ids },
+        userId: session.user.id,
+      },
+    });
+
+    revalidatePath("/technologies");
+    revalidatePath("/revision");
+    revalidatePath("/dashboard");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("Bulk delete questions error:", error);
+    return { error: "Failed to delete questions" };
   }
 }
 
@@ -425,9 +487,10 @@ export async function generateAIQuestions(technologyId: string, technologyName: 
     revalidatePath("/revision");
     revalidatePath("/dashboard");
     return { success: true, count: createdQuestions.length };
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI question generation error:", error);
-    return { error: "Failed to generate questions with AI" };
+    const { getFriendlyAIError } = require("@/lib/ai");
+    return { error: getFriendlyAIError(error) };
   }
 }
 
@@ -871,3 +934,50 @@ export async function recategorizeGeneralQuestionsAction() {
     return { error: "Failed to recategorize questions." };
   }
 }
+
+export async function formatAnswerAction(questionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Unauthorized" };
+  }
+
+  try {
+    const question = await db.question.findUnique({
+      where: { id: questionId, userId: session.user.id },
+    });
+
+    if (!question) {
+      return { error: "Question not found" };
+    }
+
+    if (!question.answer) {
+      return { error: "Question has no answer to format" };
+    }
+
+    const { generateTextOutput, buildFormatAnswerPrompt } = require("@/lib/ai");
+    const prompt = buildFormatAnswerPrompt(question.answer, question.title);
+    const formattedText = await generateTextOutput(prompt);
+
+    if (!formattedText || !formattedText.trim()) {
+      return { error: "AI failed to format the answer" };
+    }
+
+    const { markdownToHtml } = require("@/lib/markdown");
+    const htmlAnswer = markdownToHtml(formattedText.trim());
+
+    const updated = await db.question.update({
+      where: { id: questionId },
+      data: { answer: htmlAnswer },
+    });
+
+    revalidatePath("/technologies");
+    revalidatePath("/revision");
+    revalidatePath("/dashboard");
+    return { success: true, answer: updated.answer };
+  } catch (error: any) {
+    console.error("Format answer action error:", error);
+    const { getFriendlyAIError } = require("@/lib/ai");
+    return { error: getFriendlyAIError(error) };
+  }
+}
+

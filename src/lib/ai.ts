@@ -9,6 +9,55 @@ export const geminiModel = genAI.getGenerativeModel({
 export const geminiProModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash-preview-05-20",
 });
+/**
+ * Automatically retries an asynchronous API operation if it fails due to a rate limit / quota block.
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  initialDelay = 1500
+): Promise<T> {
+  let retries = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      retries++;
+      const msg = error?.message || String(error);
+      const isRateLimit =
+        msg.includes("Quota exceeded") ||
+        msg.includes("rate-limits") ||
+        msg.includes("rate limit") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("429");
+
+      if (!isRateLimit || retries > maxRetries) {
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      let delay = initialDelay * Math.pow(2, retries - 1);
+      
+      // Attempt to extract delay directly from response if present
+      const delayMatch = msg.match(/retry in ([\d.]+)(s?)/i) || msg.match(/retryDelay"?\s*:\s*"?([\d.]+)(s?)/i);
+      if (delayMatch) {
+        const parsedDelaySec = parseFloat(delayMatch[1]);
+        if (!isNaN(parsedDelaySec)) {
+          // Add 500ms safety buffer
+          const extractedDelayMs = parsedDelaySec * 1000 + 500;
+          if (extractedDelayMs < 12000) {
+            delay = extractedDelayMs;
+          }
+        }
+      }
+
+      console.warn(
+        `Gemini API rate limit hit. Retrying attempt ${retries}/${maxRetries} after ${delay}ms...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
 
 /**
  * Generate structured JSON output from Gemini
@@ -19,16 +68,18 @@ export async function generateStructuredOutput<T>(
 ): Promise<T> {
   const model = options?.usePro ? geminiProModel : geminiModel;
   
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.7,
-    },
-  });
+  return retryWithBackoff(async () => {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.7,
+      },
+    });
 
-  const text = result.response.text();
-  return JSON.parse(text) as T;
+    const text = result.response.text();
+    return JSON.parse(text) as T;
+  });
 }
 
 /**
@@ -40,14 +91,16 @@ export async function generateTextOutput(
 ): Promise<string> {
   const model = options?.usePro ? geminiProModel : geminiModel;
   
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.7,
-    },
-  });
+  return retryWithBackoff(async () => {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+      },
+    });
 
-  return result.response.text();
+    return result.response.text();
+  });
 }
 
 /**
@@ -215,15 +268,22 @@ Order from foundational to advanced. Include estimated hours for each step. Maxi
 export function buildMarkdownQuestionsParsingPrompt(markdownText: string): string {
   return `Analyze the following markdown text containing interview questions and answers. The questions can be from a single tech stack or mixed tech stacks.
   
-For each question, extract or infer the following fields:
+Follow these Question Detection and Over-splitting Prevention Rules strictly:
+1. Detect ONLY genuine, top-level interview questions (typically H1 headings starting with # or H2 headings starting with ## representing a complete question).
+2. NEVER create separate questions from subsections, examples, code blocks, lists, explanations, or notes.
+3. Every subheading under a question (such as ### Example, ### How It Works, ### Advantages, ### Disadvantages, ### Interview Tip, ### Best Practice, ### Real World Use Case, ### Common Mistakes, ### Note, ### Code Snippet) MUST remain part of the current question's answer. Do not split it.
+4. Markdown tables, bullet lists, numbered lists, blockquotes, and code blocks MUST remain attached to the current answer.
+5. Everything between "# Question A" and "# Question B" belongs entirely to Question A's answer.
+
+For each genuine question, extract:
 - title: The interview question text (clean, concise, without index numbers)
-- answer: A comprehensive answer (formatted as clean markdown if appropriate, with paragraphs, excluding the main code example which should go into codeExample)
-- codeExample: A relevant code example/snippet if present in the question/answer, otherwise null (clean code, no markdown fence backticks inside the string)
+- answer: A comprehensive answer containing all the text, explanations, subheadings (e.g. ### Example), lists, tables, and notes belonging to this question. Formatted as clean markdown.
+- codeExample: The main relevant code example/snippet if present in the question/answer, otherwise null (clean code, no markdown fence backticks inside the string)
 - codeLanguage: The programming language for the code example (e.g. "javascript", "typescript", "python", "sql") or null if none
 - difficulty: The difficulty level. Must be one of: "EASY", "MEDIUM", or "HARD"
 - interviewFrequency: Estimate how frequently this is asked. Must be one of: "RARE", "COMMON", or "VERY_COMMON"
 - tags: Array of tags. Filter from: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "FREQUENTLY_ASKED"]. Empty array if none apply.
-- technology: The specific technology category (e.g. "JavaScript", "React.js", "Python", "SQL", "Docker", "Node.js"). Keep the name clean, standard, and capitalized correctly (e.g., "JavaScript" instead of "js" or "javascript"). If the file is from a single tech stack (e.g., all questions are about JavaScript), classify all questions under that tech stack name.
+- technology: The specific technology category (e.g. "JavaScript", "React.js", "Python", "SQL", "Docker", "Node.js"). Keep the name clean, standard, and capitalized correctly (e.g., "JavaScript" instead of "js" or "javascript").
 
 Return a JSON object with a single "questions" field containing the array of parsed questions:
 {
@@ -246,3 +306,68 @@ Only return a valid JSON object matching the schema. Parse all questions in the 
 Markdown text to parse:
 ${markdownText}`;
 }
+
+/**
+ * Prompt to format/beautify an answer using AI
+ */
+export function buildFormatAnswerPrompt(answer: string, questionTitle: string): string {
+  return `You are an expert technical interviewer and editor. Format and improve the readability of the following interview answer for the question: "${questionTitle}".
+
+Follow these formatting rules strictly:
+1. PRESERVE the original meaning, technical accuracy, any code examples, notes, and interview tips. Do not omit any core explanations or information.
+2. IMPROVE headings, paragraph spacing, and overall structure.
+3. Use proper markdown (e.g. bolding key terms, using bullet lists or numbered steps, and markdown tables for comparisons where appropriate).
+4. Do NOT wrap code blocks in double backtick fences inside the markdown block if they already have one, or make sure code blocks are correctly formatted with syntax highlighting languages (e.g. \`\`\`javascript).
+5. Ensure there is logical spacing between sections and clear paragraphs for readability.
+6. The output must be valid markdown that is easy to read and ready for candidates to prepare with. Do not output any chat wrapper or conversational intro/outro text, just output the formatted markdown content.
+
+Original Answer content to format:
+${answer}`;
+}
+
+/**
+ * Parses and returns a user-friendly error message from a raw Gemini API error.
+ */
+export function getFriendlyAIError(error: any): string {
+  const msg = error?.message || String(error);
+  
+  if (
+    msg.includes("Quota exceeded") || 
+    msg.includes("rate-limits") || 
+    msg.includes("rate limit") || 
+    msg.includes("RESOURCE_EXHAUSTED") || 
+    msg.includes("429")
+  ) {
+    // Try to extract exact retry delay time (e.g. 57s) from the exception text
+    const delayMatch = msg.match(/retry in ([\d.]+)(s?)/i) || msg.match(/retryDelay"?\s*:\s*"?([\d.]+)(s?)/i);
+    let delayText = "";
+    if (delayMatch) {
+      const num = parseFloat(delayMatch[1]);
+      if (!isNaN(num)) {
+        delayText = ` Please retry in ${num.toFixed(1)}s.`;
+      } else {
+        delayText = ` Please retry in ${delayMatch[1]}${delayMatch[2] || "s"}.`;
+      }
+    } else {
+      delayText = " Please try again in a minute.";
+    }
+    return `AI quota exceeded for the free tier.${delayText}`;
+  }
+  
+  if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID") || msg.includes("API key not found")) {
+    return "Gemini API key is invalid or not found. Please check your environment variables.";
+  }
+  
+  if (msg.includes("blocked") || msg.includes("safety") || msg.includes("SAFETY")) {
+    return "AI generation was blocked by safety filters. Please revise the answer content.";
+  }
+
+  // If error message is very long/unfriendly, return a clean message
+  if (msg.length > 150) {
+    return "AI service is currently busy or rate-limited. Please wait a moment and try again.";
+  }
+  
+  return msg;
+}
+
+

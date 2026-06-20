@@ -14,18 +14,28 @@ import {
   Loader2,
   AlertCircle,
   Trash,
+  Trash2,
   Pencil,
   Globe,
   EyeOff,
+  FileText,
+  FileArchive,
+  GitBranch,
+  Edit3,
+  CheckSquare,
+  Square,
+  X,
+  MinusSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { GlassCard, RichTextEditor } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
-import { createQuestion, generateAIQuestions, deleteQuestion, updateQuestion, toggleQuestionPublic } from "@/actions/questions";
+import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction } from "@/actions/questions";
 import { toast } from "sonner";
 import { TECH_ICONS } from "@/constants";
+import { BulkImportModal } from "./BulkImportModal";
 
 /** Returns true if the string contains HTML tags (rich-text answer). */
 function isHtmlContent(str: string): boolean {
@@ -64,19 +74,27 @@ const statusLabels = {
 
 const languageNames: Record<string, string> = {
   javascript: "JavaScript",
+  js: "JavaScript",
   typescript: "TypeScript",
+  ts: "TypeScript",
   python: "Python",
+  py: "Python",
   sql: "SQL",
   html: "HTML",
   css: "CSS",
   java: "Java",
   cpp: "C++",
+  "c++": "C++",
 };
 
 function highlightCode(code: string, language: string): string {
   if (!code) return "";
   
-  const lang = (language || "").toLowerCase();
+  let lang = (language || "").toLowerCase().trim();
+  if (lang === "js") lang = "javascript";
+  if (lang === "ts") lang = "typescript";
+  if (lang === "py") lang = "python";
+  if (lang === "c++") lang = "cpp";
   
   let escaped = code
     .replace(/&/g, "&amp;")
@@ -160,6 +178,48 @@ export default function TechnologyWorkspacePage() {
   const [generating, setGenerating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
+  // Multi-select bulk delete states
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Bulk import states
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [bulkImportSource, setBulkImportSource] = useState<"markdown" | "paste" | "github" | "zip">("markdown");
+  const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
+
+  const [formattingId, setFormattingId] = useState<string | null>(null);
+
+  const handleFormatAnswer = async (questionId: string) => {
+    setFormattingId(questionId);
+    toast.loading("AI is formatting the answer...", { id: `format-answer-${questionId}` });
+    try {
+      const res = await formatAnswerAction(questionId);
+      if (res.error) {
+        toast.error(res.error, { id: `format-answer-${questionId}` });
+        return;
+      }
+      toast.success("Answer formatted successfully!", { id: `format-answer-${questionId}` });
+      
+      // Update local questions list
+      setQuestions((prev) =>
+        prev.map((item) =>
+          item.id === questionId ? { ...item, answer: res.answer } : item
+        )
+      );
+    } catch (err) {
+      toast.error("Failed to format answer", { id: `format-answer-${questionId}` });
+    } finally {
+      setFormattingId(null);
+    }
+  };
+
+  const handleStartBulkImport = (src: "markdown" | "paste" | "github" | "zip") => {
+    setBulkImportSource(src);
+    setIsBulkImportOpen(true);
+  };
+
   const executeDelete = async () => {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -176,6 +236,58 @@ export default function TechnologyWorkspacePage() {
       loadData(); // Reload list
     } catch (err) {
       toast.error("Failed to delete question", { id: "delete-question" });
+    }
+  };
+
+  // Multi-select helpers
+  const toggleSelectMode = () => {
+    if (isSelectMode) {
+      setSelectedIds(new Set());
+    }
+    setIsSelectMode(!isSelectMode);
+  };
+
+  const toggleSelectQuestion = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredQuestions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredQuestions.map(q => q.id)));
+    }
+  };
+
+  const executeBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setShowBulkDeleteConfirm(false);
+    setIsBulkDeleting(true);
+    
+    const count = selectedIds.size;
+    toast.loading(`Deleting ${count} question${count > 1 ? "s" : ""}...`, { id: "bulk-delete" });
+    try {
+      const res = await deleteMultipleQuestions(Array.from(selectedIds));
+      if (res.error) {
+        toast.error(res.error, { id: "bulk-delete" });
+        return;
+      }
+      toast.success(`Successfully deleted ${res.count} question${(res.count ?? 0) > 1 ? "s" : ""}!`, { id: "bulk-delete" });
+      setSelectedIds(new Set());
+      setIsSelectMode(false);
+      loadData();
+    } catch (err) {
+      toast.error("Failed to delete questions", { id: "bulk-delete" });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -455,13 +567,72 @@ export default function TechnologyWorkspacePage() {
               )}
               Generate with AI
             </button>
-            <button
-              onClick={handleStartAddQuestion}
-              className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              Add Question
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+                className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Add Content
+              </button>
+              {isAddDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsAddDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-[#0b0f19] p-1.5 shadow-2xl z-20 space-y-1">
+                    <button
+                      onClick={() => {
+                        setIsAddDropdownOpen(false);
+                        handleStartAddQuestion();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                    >
+                      <Plus className="h-3.5 w-3.5 text-primary" />
+                      Add Question
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddDropdownOpen(false);
+                        handleStartBulkImport("markdown");
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      Import Markdown
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddDropdownOpen(false);
+                        handleStartBulkImport("paste");
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-primary" />
+                      Bulk Paste
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddDropdownOpen(false);
+                        handleStartBulkImport("zip");
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                    >
+                      <FileArchive className="h-3.5 w-3.5 text-primary" />
+                      Import ZIP
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddDropdownOpen(false);
+                        handleStartBulkImport("github");
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                    >
+                      <GitBranch className="h-3.5 w-3.5 text-primary" />
+                      Import GitHub Repository
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -501,7 +672,68 @@ export default function TechnologyWorkspacePage() {
             className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
           />
         </div>
+        {/* Multi-select toggle */}
+        {questions.length > 0 && (
+          <button
+            onClick={toggleSelectMode}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer border whitespace-nowrap",
+              isSelectMode
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "glass border-border hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+            )}
+            title={isSelectMode ? "Exit selection mode" : "Select multiple questions"}
+          >
+            {isSelectMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+            {isSelectMode ? "Cancel" : "Select"}
+          </button>
+        )}
       </motion.div>
+
+      {/* Select All bar + floating action bar */}
+      <AnimatePresence>
+        {isSelectMode && filteredQuestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl glass border border-border/80 bg-primary/5"
+          >
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-2 text-sm font-semibold text-foreground/90 hover:text-primary transition-colors cursor-pointer"
+              >
+                {selectedIds.size === filteredQuestions.length ? (
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                ) : selectedIds.size > 0 ? (
+                  <MinusSquare className="h-4 w-4 text-primary" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                {selectedIds.size === filteredQuestions.length ? "Deselect All" : "Select All"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {selectedIds.size} of {filteredQuestions.length} selected
+              </span>
+            </div>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                disabled={isBulkDeleting}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-lg shadow-red-500/20 disabled:opacity-50"
+              >
+                {isBulkDeleting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Delete {selectedIds.size} Question{selectedIds.size > 1 ? "s" : ""}
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Questions List */}
       {filteredQuestions.length === 0 ? (
@@ -520,13 +752,38 @@ export default function TechnologyWorkspacePage() {
             <motion.div key={q.id} variants={fadeInUp}>
               <GlassCard className="p-0 overflow-hidden">
                 {/* Question Header (clickable) */}
-                <button
-                  onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}
-                  className="w-full text-left p-5 flex items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer"
+                <div
+                  onClick={() => {
+                    if (isSelectMode) {
+                      toggleSelectQuestion(q.id);
+                    } else {
+                      setExpandedId(expandedId === q.id ? null : q.id);
+                    }
+                  }}
+                  className={cn(
+                    "w-full text-left p-5 flex items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer",
+                    isSelectMode && selectedIds.has(q.id) && "bg-primary/5 border-l-2 border-l-primary"
+                  )}
                 >
                   <div className="flex-1 min-w-0 pr-4">
                     <div className="flex items-center gap-2">
-                      <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{index + 1}.</span>
+                      {isSelectMode ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectQuestion(q.id);
+                          }}
+                          className="shrink-0 cursor-pointer p-0.5 transition-colors"
+                        >
+                          {selectedIds.has(q.id) ? (
+                            <CheckSquare className="h-4.5 w-4.5 text-primary" />
+                          ) : (
+                            <Square className="h-4.5 w-4.5 text-muted-foreground hover:text-primary" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{index + 1}.</span>
+                      )}
                       <h3 className="font-semibold text-sm sm:text-base">{q.title}</h3>
                       {q.isPublic && (
                         <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
@@ -562,8 +819,8 @@ export default function TechnologyWorkspacePage() {
                       className={cn(
                         "p-1.5 rounded-lg border transition-all cursor-pointer z-10",
                         q.isPublic
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
-                          : "border-border bg-black/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
+                           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                           : "border-border bg-black/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
                       )}
                       title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
                     >
@@ -596,7 +853,7 @@ export default function TechnologyWorkspacePage() {
                       <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                     </motion.div>
                   </div>
-                </button>
+                </div>
 
                 {/* Expanded Content */}
                 <AnimatePresence>
@@ -610,8 +867,25 @@ export default function TechnologyWorkspacePage() {
                     >
                       <div className="px-5 pb-5 border-t border-border/50 pt-4 space-y-4">
                         {/* Answer */}
-                        <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">Answer</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-muted-foreground">Answer</h4>
+                            {q.answer && (
+                              <button
+                                onClick={() => handleFormatAnswer(q.id)}
+                                disabled={formattingId === q.id}
+                                className="inline-flex items-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer disabled:opacity-40"
+                                title="Format Answer with AI"
+                              >
+                                {formattingId === q.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                                <span>Format Answer</span>
+                              </button>
+                            )}
+                          </div>
                           {q.answer ? (
                             isHtmlContent(q.answer) ? (
                               <div
@@ -878,7 +1152,7 @@ export default function TechnologyWorkspacePage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (single) */}
       <AnimatePresence>
         {deleteTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -923,6 +1197,69 @@ export default function TechnologyWorkspacePage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showBulkDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBulkDeleteConfirm(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-sm overflow-hidden rounded-2xl glass-strong border border-red-500/30 p-6 shadow-2xl relative z-10 text-center"
+            >
+              <div className="p-3 bg-red-500/10 rounded-2xl w-fit mx-auto mb-4 border border-red-500/20">
+                <Trash2 className="h-6 w-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">Delete {selectedIds.size} Question{selectedIds.size > 1 ? "s" : ""}?</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                This will permanently delete <span className="font-semibold text-red-400">{selectedIds.size} selected question{selectedIds.size > 1 ? "s" : ""}</span>. This action cannot be undone.
+              </p>
+              <div className="max-h-32 overflow-y-auto my-4 text-left bg-black/20 rounded-xl p-3 border border-border/50">
+                {filteredQuestions
+                  .filter(q => selectedIds.has(q.id))
+                  .map((q, i) => (
+                    <div key={q.id} className="text-xs text-muted-foreground py-0.5 truncate">
+                      <span className="text-foreground/60 font-medium">{i + 1}.</span> {q.title}
+                    </div>
+                  ))}
+              </div>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-red-500/20 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isBulkDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Delete All
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Smart Bulk Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        initialSource={bulkImportSource}
+        currentWorkspaceName={tech?.name}
+        onImportComplete={loadData}
+      />
     </motion.div>
   );
 }

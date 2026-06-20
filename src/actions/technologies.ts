@@ -38,7 +38,7 @@ export async function getTechnologyBySlug(slug: string) {
     throw new Error("Unauthorized");
   }
 
-  return await db.technology.findUnique({
+  const tech = await db.technology.findUnique({
     where: {
       userId_slug: {
         userId: session.user.id,
@@ -54,6 +54,42 @@ export async function getTechnologyBySlug(slug: string) {
       },
     },
   });
+
+  if (tech && tech.questions.length > 0) {
+    const { markdownToHtml } = require("@/lib/markdown");
+    let needsUpdate = false;
+
+    for (const q of tech.questions) {
+      if (q.answer && !/<[a-z][\s\S]*>/i.test(q.answer)) {
+        const isMarkdown =
+          q.answer.includes("#") ||
+          q.answer.includes("*") ||
+          q.answer.includes("`") ||
+          /^\d+\.\s/m.test(q.answer) ||
+          q.answer.includes("- ");
+        if (isMarkdown) {
+          try {
+            const htmlAnswer = markdownToHtml(q.answer);
+            await db.question.update({
+              where: { id: q.id },
+              data: { answer: htmlAnswer },
+            });
+            q.answer = htmlAnswer;
+            needsUpdate = true;
+          } catch (err) {
+            console.error(`Failed to migrate question ${q.id} to HTML:`, err);
+          }
+        }
+      }
+    }
+
+    if (needsUpdate) {
+      revalidatePath("/technologies");
+      revalidatePath(`/technologies/${slug}`);
+    }
+  }
+
+  return tech;
 }
 
 export async function createTechnology(name: string, description?: string) {
