@@ -28,18 +28,20 @@ import {
   X,
   MinusSquare,
   BookOpen,
+  Clock,
   Eye,
   FileCode,
   Type,
   LayoutGrid,
   List,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent } from "@/components/shared";
+import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent, ConfirmDeleteButton } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
-import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction } from "@/actions/questions";
+import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction, recordRevision } from "@/actions/questions";
 import { toast } from "sonner";
 import { TECH_ICONS } from "@/constants";
 import { BulkImportModal } from "./BulkImportModal";
@@ -48,6 +50,12 @@ import { BulkImportModal } from "./BulkImportModal";
 function isHtmlContent(str: string): boolean {
   return /<[a-z][\s\S]*>/i.test(str);
 }
+
+function estimateReadTime(text: string): number {
+  const words = text.replace(/```[\s\S]*?```/g, "").split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -166,8 +174,7 @@ export default function TechnologyWorkspacePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOption, setSortOption] = useState<string>("default");
 
-  // Expanded and Copied states
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Copied states
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Manual Question creation/edit states
@@ -197,7 +204,6 @@ export default function TechnologyWorkspacePage() {
 
   // AI Generation state
   const [generating, setGenerating] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   // Multi-select bulk delete states
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -211,13 +217,65 @@ export default function TechnologyWorkspacePage() {
   const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
 
   const [formattingId, setFormattingId] = useState<string | null>(null);
-
-  // Detail view state (FrontendPrep.io-style full article)
   const [detailViewQuestion, setDetailViewQuestion] = useState<any | null>(null);
-
-  // Editor mode: 'richtext' or 'markdown'
   const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("markdown");
   const [markdownPreview, setMarkdownPreview] = useState(false);
+
+  // Spaced Repetition Practice Session States
+  const [isPracticeOpen, setIsPracticeOpen] = useState(false);
+  const [practiceStack, setPracticeStack] = useState<any[]>([]);
+  const [practiceIndex, setPracticeIndex] = useState(0);
+  const [revealAnswer, setRevealAnswer] = useState(false);
+  const [practiceDone, setPracticeDone] = useState(false);
+
+  const handleStartPractice = () => {
+    if (questions.length === 0) {
+      toast.error("Add some questions first to start practicing!");
+      return;
+    }
+    
+    // Sort stack: due questions first, then the rest
+    const now = new Date();
+    const due = questions.filter((q) => {
+      const lastRec = q.revisionRecords?.[0];
+      return q.revisionStatus !== "MASTERED" && (!lastRec?.nextReviewAt || new Date(lastRec.nextReviewAt) <= now);
+    });
+    
+    const others = questions.filter((q) => !due.includes(q));
+    const stack = [...due, ...others];
+    
+    setPracticeStack(stack);
+    setPracticeIndex(0);
+    setRevealAnswer(false);
+    setPracticeDone(false);
+    setIsPracticeOpen(true);
+  };
+
+  const handlePracticeGrade = async (quality: number) => {
+    const q = practiceStack[practiceIndex];
+    toast.loading("Saving grade...", { id: "practice-grade" });
+    
+    try {
+      const res = await recordRevision(q.id, quality);
+      if (res.error) {
+        toast.error(res.error, { id: "practice-grade" });
+        return;
+      }
+      toast.success("Review recorded!", { id: "practice-grade" });
+      
+      // Advance or finish
+      if (practiceIndex < practiceStack.length - 1) {
+        setPracticeIndex((prev) => prev + 1);
+        setRevealAnswer(false);
+      } else {
+        setPracticeDone(true);
+      }
+      
+      loadData(); // reload data in background to refresh status badges
+    } catch (err) {
+      toast.error("Failed to save grade", { id: "practice-grade" });
+    }
+  };
 
   const handleFormatAnswer = async (questionId: string) => {
     setFormattingId(questionId);
@@ -248,14 +306,10 @@ export default function TechnologyWorkspacePage() {
     setIsBulkImportOpen(true);
   };
 
-  const executeDelete = async () => {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
-    setDeleteTarget(null);
-    
+  const handleDeleteQuestion = async (id: string, title: string) => {
     toast.loading("Deleting question...", { id: "delete-question" });
     try {
-      const res = await deleteQuestion(target.id);
+      const res = await deleteQuestion(id);
       if (res.error) {
         toast.error(res.error, { id: "delete-question" });
         return;
@@ -621,13 +675,21 @@ export default function TechnologyWorkspacePage() {
     );
   }
 
+  const now = new Date();
+  const dueQuestions = questions.filter((q) => {
+    const lastRec = q.revisionRecords?.[0];
+    return q.revisionStatus !== "MASTERED" && (!lastRec?.nextReviewAt || new Date(lastRec.nextReviewAt) <= now);
+  });
+  const dueCount = dueQuestions.length;
+
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={staggerContainer}
-      className="space-y-6 max-w-5xl mx-auto"
-    >
+    <>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="space-y-6 max-w-5xl mx-auto"
+      >
       {/* Back + Header */}
       <motion.div variants={fadeInUp}>
         <Link
@@ -661,11 +723,45 @@ export default function TechnologyWorkspacePage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {questions.length > 0 && (
+              dueCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleStartPractice}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary transition-all text-sm font-semibold cursor-pointer shadow-lg shadow-primary/10 relative h-9 whitespace-nowrap"
+                >
+                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                  <span>Practice Due</span>
+                  <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                    {dueCount}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartPractice}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border glass hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
+                >
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>Practice Cards</span>
+                </button>
+              )
+            )}
+            
+            <button
+              onClick={() => handleStartBulkImport("markdown")}
+              className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2 rounded-lg transition-all text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
+              title="Import questions from Markdown, Text, PDF, or DOCX"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Import Questions</span>
+            </button>
+
             <div className="relative">
               <button
                 onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
-                className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer"
+                className="flex items-center gap-2 gradient-bg text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" />
                 Add Content
@@ -1041,13 +1137,13 @@ export default function TechnologyWorkspacePage() {
                         >
                           <Pencil className="h-3 w-3" />
                         </button>
-                        <button
-                          onClick={() => setDeleteTarget({ id: q.id, title: q.title })}
-                          className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash className="h-3 w-3" />
-                        </button>
+                        <ConfirmDeleteButton
+                          onDelete={() => handleDeleteQuestion(q.id, q.title)}
+                          className="w-6 h-6 bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
+                          tooltip="Delete"
+                          icon={<Trash className="h-3 w-3" />}
+                          confirmIcon={<AlertCircle className="h-3 w-3 animate-pulse" />}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1057,18 +1153,17 @@ export default function TechnologyWorkspacePage() {
           })}
         </motion.div>
       ) : (
-        /* List View (Accordion Cards) Layout */
+        /* List View Layout */
         <motion.div variants={staggerContainer} className="space-y-3">
           {paginatedQuestions.map((q, index) => (
-            <motion.div key={q.id} variants={fadeInUp}>
+            <motion.div key={q.id} id={`question-${q.id}`} variants={fadeInUp}>
               <GlassCard className="p-0 overflow-hidden">
-                {/* Question Header (clickable) */}
                 <div
                   onClick={() => {
                     if (isSelectMode) {
                       toggleSelectQuestion(q.id);
                     } else {
-                      setExpandedId(expandedId === q.id ? null : q.id);
+                      setDetailViewQuestion(q);
                     }
                   }}
                   className={cn(
@@ -1095,7 +1190,7 @@ export default function TechnologyWorkspacePage() {
                       ) : (
                         <span className="shrink-0 text-xs font-bold text-muted-foreground/60 w-6 text-right tabular-nums">{startIndex + index + 1}.</span>
                       )}
-                      <h3 className="font-semibold text-sm sm:text-base">{q.title}</h3>
+                      <h3 className="font-semibold text-sm sm:text-base group-hover:text-primary transition-colors">{q.title}</h3>
                       {q.isPublic && (
                         <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
                           <Globe className="h-2.5 w-2.5" />
@@ -1147,88 +1242,14 @@ export default function TechnologyWorkspacePage() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget({ id: q.id, title: q.title });
-                      }}
-                      className="p-1.5 rounded-lg border border-border bg-black/10 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer z-10"
-                      title="Delete Question"
-                    >
-                      <Trash className="h-3.5 w-3.5" />
-                    </button>
-                    <motion.div
-                      animate={{ rotate: expandedId === q.id ? 90 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                    </motion.div>
+                    <ConfirmDeleteButton
+                      onDelete={() => handleDeleteQuestion(q.id, q.title)}
+                      className="w-7 h-7 border border-border bg-black/10 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer z-10"
+                      tooltip="Delete Question"
+                    />
+                    <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                   </div>
                 </div>
-
-                {/* Expanded Content */}
-                <AnimatePresence>
-                  {expandedId === q.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-5 pb-5 border-t border-border/50 pt-4 space-y-4">
-                        {/* Answer */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-semibold text-muted-foreground">Answer</h4>
-                            <div className="flex items-center gap-2">
-                              {q.answer && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDetailViewQuestion(q);
-                                  }}
-                                  className="inline-flex items-center gap-1 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                                  title="Read Full Article"
-                                >
-                                  <BookOpen className="h-3.5 w-3.5" />
-                                  <span>Read Full</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          {q.answer ? (
-                            isMarkdownContent(q.answer) ? (
-                              <MarkdownRenderer content={q.answer} />
-                            ) : isHtmlContent(q.answer) ? (
-                              <div
-                                className="rich-text-content text-sm leading-relaxed"
-                                dangerouslySetInnerHTML={{ __html: q.answer }}
-                              />
-                            ) : (
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.answer}</p>
-                            )
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic">No answer details provided.</p>
-                          )}
-                        </div>
-
-                        {/* Code Example */}
-                        {q.codeExample && (
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
-                              <Code2 className="h-3.5 w-3.5" />
-                              Code Example
-                            </h4>
-                            <MarkdownRenderer
-                              content={`\`\`\`${q.codeLanguage || "javascript"}\n${q.codeExample}\n\`\`\``}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </GlassCard>
             </motion.div>
           ))}
@@ -1605,51 +1626,7 @@ export default function TechnologyWorkspacePage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal (single) */}
-      <AnimatePresence>
-        {deleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setDeleteTarget(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
 
-            {/* Modal Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-sm overflow-hidden rounded-2xl glass-strong border border-border p-6 shadow-2xl relative z-10 text-center"
-            >
-              <div className="p-3 bg-red-500/10 rounded-2xl w-fit mx-auto mb-4 border border-red-500/20">
-                <Trash className="h-6 w-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold mb-2">Delete Question?</h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                Are you sure you want to delete the question <span className="font-semibold text-foreground">"{deleteTarget.title}"</span>? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={executeDelete}
-                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-red-500/20"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Bulk Delete Confirmation Modal */}
       <AnimatePresence>
@@ -1704,6 +1681,7 @@ export default function TechnologyWorkspacePage() {
           </div>
         )}
       </AnimatePresence>
+    </motion.div>
 
       {/* Smart Bulk Import Modal */}
       <BulkImportModal
@@ -1720,10 +1698,210 @@ export default function TechnologyWorkspacePage() {
           <QuestionDetailView
             question={detailViewQuestion}
             technologyName={tech?.name || ""}
+            allQuestions={questions}
             onClose={() => setDetailViewQuestion(null)}
+            onSelectQuestion={setDetailViewQuestion}
           />
         )}
       </AnimatePresence>
-    </motion.div>
+
+
+
+      {/* Interactive Spaced Repetition Practice Modal */}
+      <AnimatePresence>
+        {isPracticeOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPracticeOpen(false)}
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-lg rounded-2xl border border-border/85 bg-[#070b14]/90 backdrop-blur-xl p-6 shadow-2xl relative z-10 flex flex-col min-h-[420px] max-h-[90vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+                <div>
+                  <h3 className="font-bold text-base flex items-center gap-1.5">
+                    <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
+                    <span>Practice Session: {tech.name}</span>
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Active Recall & Spaced Repetition</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPracticeOpen(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {!practiceDone && practiceStack.length > 0 ? (
+                <div className="flex flex-col flex-1">
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-5">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${((practiceIndex) / practiceStack.length) * 100}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                    <span>Card {practiceIndex + 1} of {practiceStack.length}</span>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                      practiceStack[practiceIndex].revisionStatus === "MASTERED"
+                        ? "bg-green-500/10 border-green-500/20 text-green-400"
+                        : practiceStack[practiceIndex].revisionStatus === "LEARNING" || practiceStack[practiceIndex].revisionStatus === "REVISED_ONCE"
+                          ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                          : "bg-slate-500/10 border-slate-500/20 text-slate-400"
+                    )}>
+                      {practiceStack[practiceIndex].revisionStatus === "NOT_STARTED" ? "New Card" : "Reviewing"}
+                    </span>
+                  </div>
+
+                  {/* Card Content container */}
+                  <div className="flex-1 flex flex-col justify-between space-y-4">
+                    {/* Question Card */}
+                    <div className="flex-1 rounded-2xl bg-white/5 border border-border p-6 flex flex-col justify-center min-h-[160px] relative overflow-hidden group">
+                      <div className="absolute top-3 left-4 text-[9px] font-bold text-primary/60 tracking-wider uppercase">{tech.name} Question</div>
+                      <h4 className="text-lg font-bold text-center text-foreground leading-snug">
+                        {practiceStack[practiceIndex].title}
+                      </h4>
+                    </div>
+
+                    {/* Answer Reveal Area */}
+                    <AnimatePresence mode="wait">
+                      {!revealAnswer ? (
+                        <motion.div
+                          key="reveal-btn"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="flex justify-center py-4"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setRevealAnswer(true)}
+                            className="px-6 py-3 rounded-xl gradient-bg text-white hover:opacity-90 transition-all font-semibold text-sm shadow-lg shadow-primary/20 cursor-pointer flex items-center gap-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Reveal Answer
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="answer-content"
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="space-y-4 border-t border-border/50 pt-4"
+                        >
+                          {/* Render Markdown/HTML Answer */}
+                          <div className="max-h-[220px] overflow-y-auto rounded-xl bg-black/25 border border-border/30 p-4 text-sm leading-relaxed">
+                            {practiceStack[practiceIndex].answer ? (
+                              isMarkdownContent(practiceStack[practiceIndex].answer) ? (
+                                <MarkdownRenderer content={practiceStack[practiceIndex].answer} />
+                              ) : isHtmlContent(practiceStack[practiceIndex].answer) ? (
+                                <div
+                                  className="rich-text-content"
+                                  dangerouslySetInnerHTML={{ __html: practiceStack[practiceIndex].answer }}
+                                />
+                              ) : (
+                                <p className="whitespace-pre-wrap">{practiceStack[practiceIndex].answer}</p>
+                              )
+                            ) : (
+                              <p className="text-muted-foreground italic">No answer explanation provided.</p>
+                            )}
+                            
+                            {/* Code example if any */}
+                            {practiceStack[practiceIndex].codeExample && (
+                              <div className="mt-4 pt-4 border-t border-border/20">
+                                <MarkdownRenderer
+                                  content={`\`\`\`${practiceStack[practiceIndex].codeLanguage || "javascript"}\n${practiceStack[practiceIndex].codeExample}\n\`\`\``}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Spaced repetition rating options */}
+                          <div className="space-y-2.5">
+                            <label className="block text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">Rate your recall quality:</label>
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {[
+                                { label: "Forgot", value: 1, desc: "Total blackout", color: "hover:bg-red-500 hover:text-white border-red-500/20 text-red-400 bg-red-500/5 hover:shadow-lg hover:shadow-red-500/20" },
+                                { label: "Hard", value: 2, desc: "Incorrect recall", color: "hover:bg-orange-500 hover:text-white border-orange-500/20 text-orange-400 bg-orange-500/5 hover:shadow-lg hover:shadow-orange-500/20" },
+                                { label: "Okay", value: 3, desc: "Recalled with effort", color: "hover:bg-yellow-500 hover:text-black border-yellow-500/20 text-yellow-400 bg-yellow-500/5 hover:shadow-lg hover:shadow-yellow-500/20" },
+                                { label: "Good", value: 4, desc: "Slight hesitation", color: "hover:bg-blue-500 hover:text-white border-blue-500/20 text-blue-400 bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/20" },
+                                { label: "Easy", value: 5, desc: "Perfect recall", color: "hover:bg-green-500 hover:text-white border-green-500/20 text-green-400 bg-green-500/5 hover:shadow-lg hover:shadow-green-500/20" },
+                              ].map((g) => (
+                                <button
+                                  key={g.value}
+                                  type="button"
+                                  onClick={() => handlePracticeGrade(g.value)}
+                                  className={cn(
+                                    "flex flex-col items-center py-2 px-1 rounded-xl border text-[10px] font-bold transition-all cursor-pointer",
+                                    g.color
+                                  )}
+                                  title={g.desc}
+                                >
+                                  <span className="text-xs mb-0.5">{g.value}</span>
+                                  <span>{g.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              ) : (
+                /* Celebration session completion view */
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8"
+                >
+                  <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-3xl animate-bounce">
+                    🎉
+                  </div>
+                  <h4 className="text-xl font-bold text-foreground">Practice Session Completed!</h4>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Amazing job! You have revised all <span className="font-semibold text-primary">{practiceStack.length} questions</span> in your <span className="font-semibold text-foreground">{tech.name}</span> workspace today.
+                  </p>
+                  <p className="text-xs text-muted-foreground">Spaced repetition reviews recorded successfully.</p>
+                  
+                  <div className="pt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleStartPractice}
+                      className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      Practice Again
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPracticeOpen(false)}
+                      className="gradient-bg text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-primary/25"
+                    >
+                      Close Session
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

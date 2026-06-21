@@ -83,8 +83,9 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
 
   return (
     <header
+      id="main-navbar"
       className={cn(
-        "fixed top-0 right-0 z-20 h-16",
+        "fixed top-0 right-0 z-[201] h-16",
         "bg-background/80 backdrop-blur-xl border-b border-border/50",
         "transition-all duration-300",
         sidebarCollapsed ? "lg:left-[72px]" : "lg:left-[260px]",

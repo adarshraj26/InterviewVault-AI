@@ -12,7 +12,6 @@ export const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { label: "Technologies", href: "/technologies", icon: "Code2" },
   { label: "Mock Interview", href: "/mock-interview", icon: "Mic" },
-  { label: "Revision", href: "/revision", icon: "RotateCcw" },
   { label: "Community", href: "/community", icon: "Users" },
   { label: "Notes", href: "/notes", icon: "StickyNote" },
   { label: "Analytics", href: "/analytics", icon: "BarChart3" },

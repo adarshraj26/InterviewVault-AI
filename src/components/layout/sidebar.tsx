@@ -25,7 +25,6 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Technologies", href: "/technologies", icon: Code2 },
   { label: "Mock Interview", href: "/mock-interview", icon: Mic },
-  { label: "Revision", href: "/revision", icon: RotateCcw },
   { label: "Community", href: "/community", icon: Users },
   { label: "Saved", href: "/saved", icon: Bookmark },
   { label: "Notes", href: "/notes", icon: StickyNote },
@@ -169,6 +168,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     <>
       {/* Desktop sidebar */}
       <aside
+        id="desktop-sidebar"
         className={cn(
           "fixed left-0 top-0 h-full z-30 hidden lg:block",
           "bg-card/80 backdrop-blur-xl border-r border-border/50",
@@ -183,6 +183,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       <AnimatePresence>
         {mobileOpen && (
           <motion.aside
+            id="mobile-sidebar"
             initial={{ x: -300 }}
             animate={{ x: 0 }}
             exit={{ x: -300 }}

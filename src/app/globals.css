@@ -853,8 +853,8 @@ input[type="button"],
 /* ── Table of Contents Sidebar ─────────────────────────── */
 .toc-sidebar {
   position: sticky;
-  top: 5.5rem;
-  max-height: calc(100vh - 7rem);
+  top: 2rem;
+  max-height: calc(100vh - 4rem);
   overflow-y: auto;
 }
 
@@ -889,4 +889,25 @@ input[type="button"],
 .toc-link-h3 {
   padding-left: 1rem;
   font-size: 0.75rem;
+}
+
+/* ── Shake Animation for Hold-to-Delete ────────────────── */
+@keyframes delete-shake {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(0.97) rotate(-1.5deg); }
+  40% { transform: scale(0.97) rotate(1.5deg); }
+  60% { transform: scale(1.03) rotate(-1.5deg); }
+  80% { transform: scale(1.03) rotate(1.5deg); }
+}
+
+.animate-delete-shake {
+  animation: delete-shake 0.15s infinite;
+}
+
+/* Hide sidebar and stretch navbar when viewing question details */
+body.detail-view-open aside {
+  display: none !important;
+}
+body.detail-view-open header {
+  left: 0 !important;
 }

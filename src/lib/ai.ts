@@ -308,6 +308,45 @@ ${markdownText}`;
 }
 
 /**
+ * Prompt to parse unstructured documents/files/lists to extract questions (supporting empty answers)
+ */
+export function buildQuestionsListParsingPrompt(text: string): string {
+  return `Analyze the following text (which could be a markdown file, raw text, or text extracted from a PDF/DOCX document). It contains a list of interview questions.
+  Some questions might have answers under them, and some might just be a list of question titles (e.g., a numbered list of questions without answers).
+  
+  Extract all the questions. If a question does not have an answer in the text, leave the "answer" field as a null or empty string. Do NOT write your own answers; only extract what is present in the text.
+  
+  For each question, extract:
+  - title: The question text (clean, concise, without index numbers)
+  - answer: The answer explanation text if present in the source text (otherwise null or empty string)
+  - codeExample: Any code example associated with the question/answer if present in the source text (otherwise null)
+  - codeLanguage: The programming language for the code example (e.g. "cpp", "javascript", "python") or null if none
+  - difficulty: "EASY", "MEDIUM", or "HARD" (estimate if not specified)
+  - interviewFrequency: "RARE", "COMMON", or "VERY_COMMON" (estimate if not specified)
+  - tags: Array of tags from ["BEGINNER", "INTERMEDIATE", "ADVANCED", "FREQUENTLY_ASKED"] (estimate if not specified)
+  
+  Return a JSON object:
+  {
+    "questions": [
+      {
+        "title": "...",
+        "answer": "...",
+        "codeExample": "...",
+        "codeLanguage": "...",
+        "difficulty": "...",
+        "interviewFrequency": "...",
+        "tags": [...]
+      }
+    ]
+  }
+  
+  Only return a valid JSON object. Extract all questions listed.
+  
+  Text to parse:
+  ${text}`;
+}
+
+/**
  * Prompt to format/beautify an answer using AI
  */
 export function buildFormatAnswerPrompt(answer: string, questionTitle: string): string {

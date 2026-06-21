@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { GlassCard } from "@/components/shared";
+import { GlassCard, ConfirmDeleteButton } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { TECH_ICONS } from "@/constants";
 import { getTechnologies, createTechnology, deleteTechnology, updateTechnology } from "@/actions/technologies";
@@ -40,7 +40,6 @@ export default function TechnologiesPage() {
   const [newTechName, setNewTechName] = useState("");
   const [newTechDesc, setNewTechDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<TechnologyWithQuestions | null>(null);
 
   // Markdown Import state
@@ -52,19 +51,15 @@ export default function TechnologiesPage() {
   const [recategorizing, setRecategorizing] = useState(false);
   const mdFileInputRef = useRef<HTMLInputElement>(null);
 
-  const executeDelete = async () => {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
-    setDeleteTarget(null);
-    
-    toast.loading("Deleting workspace...", { id: "delete-tech" });
+  const handleDeleteTech = async (id: string, name: string) => {
+    toast.loading(`Deleting workspace "${name}"...`, { id: "delete-tech" });
     try {
-      const res = await deleteTechnology(target.id);
+      const res = await deleteTechnology(id);
       if (res.error) {
         toast.error(res.error, { id: "delete-tech" });
         return;
       }
-      toast.success("Workspace deleted successfully!", { id: "delete-tech" });
+      toast.success(`Workspace "${name}" deleted successfully!`, { id: "delete-tech" });
       loadTechnologies(); // Reload list
     } catch (err) {
       toast.error("Failed to delete workspace", { id: "delete-tech" });
@@ -265,13 +260,6 @@ export default function TechnologiesPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleStartImportQuestions}
-            className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2.5 rounded-xl transition-all text-sm font-semibold cursor-pointer"
-          >
-            <Upload className="h-4 w-4" />
-            Import Questions
-          </button>
-          <button
             onClick={handleStartCreateTech}
             className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer"
           >
@@ -345,17 +333,11 @@ export default function TechnologiesPage() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDeleteTarget({ id: tech.id, name: tech.name });
-                        }}
-                        className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
-                        title="Delete Workspace"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <ConfirmDeleteButton
+                        onDelete={() => handleDeleteTech(tech.id, tech.name)}
+                        className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
+                        tooltip="Delete Workspace"
+                      />
                     </div>
 
                     {/* Tech Icon */}
@@ -492,51 +474,7 @@ export default function TechnologiesPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {deleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setDeleteTarget(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
 
-            {/* Modal Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-sm overflow-hidden rounded-2xl glass-strong border border-border p-6 shadow-2xl relative z-10 text-center"
-            >
-              <div className="p-3 bg-red-500/10 rounded-2xl w-fit mx-auto mb-4 border border-red-500/20">
-                <Trash2 className="h-6 w-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold mb-2">Delete Workspace?</h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                Are you sure you want to delete the <span className="font-semibold text-foreground">"{deleteTarget.name}"</span> workspace and all of its questions? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={executeDelete}
-                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-red-500/20"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Smart Bulk Import Modal */}
       <BulkImportModal

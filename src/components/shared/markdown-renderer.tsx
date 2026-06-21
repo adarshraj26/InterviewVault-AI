@@ -2,61 +2,30 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { marked } from "marked";
-import DOMPurify from "dompurify";
 import { Code2, Copy, Check } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════
-   MarkdownRenderer — FrontendPrep.io-inspired markdown display
+   MarkdownRenderer — premium markdown display
    ═══════════════════════════════════════════════════════════ */
 
 // ── Language display names ──────────────────────────────────
 const LANG_NAMES: Record<string, string> = {
-  javascript: "JavaScript",
-  js: "JavaScript",
-  typescript: "TypeScript",
-  ts: "TypeScript",
-  python: "Python",
-  py: "Python",
+  javascript: "JavaScript", js: "JavaScript",
+  typescript: "TypeScript", ts: "TypeScript",
+  python: "Python", py: "Python",
   java: "Java",
-  cpp: "C++",
-  "c++": "C++",
-  c: "C",
-  csharp: "C#",
-  "c#": "C#",
-  go: "Go",
-  rust: "Rust",
-  ruby: "Ruby",
-  php: "PHP",
-  swift: "Swift",
-  kotlin: "Kotlin",
-  dart: "Dart",
-  sql: "SQL",
-  html: "HTML",
-  css: "CSS",
-  scss: "SCSS",
-  sass: "Sass",
-  json: "JSON",
-  yaml: "YAML",
-  xml: "XML",
-  bash: "Bash",
-  shell: "Shell",
-  sh: "Shell",
-  powershell: "PowerShell",
-  dockerfile: "Dockerfile",
-  graphql: "GraphQL",
-  markdown: "Markdown",
-  md: "Markdown",
-  text: "Text",
-  txt: "Text",
-  jsx: "JSX",
-  tsx: "TSX",
-  vue: "Vue",
-  svelte: "Svelte",
-  r: "R",
-  scala: "Scala",
-  elixir: "Elixir",
-  lua: "Lua",
-  perl: "Perl",
+  cpp: "C++", "c++": "C++", c: "C",
+  csharp: "C#", "c#": "C#",
+  go: "Go", rust: "Rust", ruby: "Ruby", php: "PHP",
+  swift: "Swift", kotlin: "Kotlin", dart: "Dart",
+  sql: "SQL", html: "HTML", css: "CSS", scss: "SCSS", sass: "Sass",
+  json: "JSON", yaml: "YAML", xml: "XML",
+  bash: "Bash", shell: "Shell", sh: "Shell", powershell: "PowerShell",
+  dockerfile: "Dockerfile", graphql: "GraphQL",
+  markdown: "Markdown", md: "Markdown",
+  text: "Text", txt: "Text", plaintext: "Plain Text",
+  jsx: "JSX", tsx: "TSX", vue: "Vue", svelte: "Svelte",
+  r: "R", scala: "Scala", elixir: "Elixir", lua: "Lua", perl: "Perl",
 };
 
 // ── Syntax Highlighting ─────────────────────────────────────
@@ -71,31 +40,26 @@ function highlightSyntax(code: string, language: string): string {
   if (lang === "c#") lang = "csharp";
   if (lang === "sh") lang = "bash";
 
-  // HTML-escape
-  let escaped = code
+  const escaped = code
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Languages we can highlight
   const highlightable = [
     "javascript", "typescript", "python", "java", "cpp", "csharp",
     "go", "rust", "ruby", "php", "swift", "kotlin", "dart",
     "html", "css", "sql", "bash", "jsx", "tsx",
   ];
 
-  if (!highlightable.includes(lang)) {
-    return escaped;
-  }
+  if (!highlightable.includes(lang)) return escaped;
 
-  // CSS/HTML have their own patterns
   if (lang === "html" || lang === "jsx" || lang === "tsx") {
     return escaped.replace(
       /(&lt;!--.*?--&gt;)|(&lt;\/?[a-zA-Z0-9:-]+)|(\s[a-zA-Z0-9:-]+=)|(".*?"|'.*?')/g,
       (match, comment, tag, attr, val) => {
         if (comment) return `<span class="token-comment">${match}</span>`;
-        if (tag) return match.replace(/(&lt;\/?)([\s\S]*)/, '$1<span class="token-tag">$2</span>');
-        if (attr) return match.replace(/(\s)([\s\S]*)(=)/, '$1<span class="token-attr-name">$2</span>$3');
+        if (tag) return match.replace(/(&lt;\/?)([^\s]*)/, '$1<span class="token-tag">$2</span>');
+        if (attr) return match.replace(/(\s)([^\s=]*)(\s*=)/, '$1<span class="token-attr-name">$2</span>$3');
         if (val) return `<span class="token-attr-value">${match}</span>`;
         return match;
       }
@@ -129,7 +93,7 @@ function highlightSyntax(code: string, language: string): string {
 
   if (lang === "bash" || lang === "shell") {
     return escaped.replace(
-      /(#.*)|(["'])([\s\S]*?)\2|(\$\w+)|\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|exit|echo|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|sudo|apt|yum|brew|npm|npx|yarn|pnpm|pip|git|docker|kubectl)\b/g,
+      /(#.*)|(['"'])([\s\S]*?)\2|(\$\w+)|\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|exit|echo|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|sudo|apt|yum|brew|npm|npx|yarn|pnpm|pip|git|docker|kubectl)\b/g,
       (match, comment, q, _s, variable, kw) => {
         if (comment) return `<span class="token-comment">${match}</span>`;
         if (q) return `<span class="token-string">${match}</span>`;
@@ -140,7 +104,6 @@ function highlightSyntax(code: string, language: string): string {
     );
   }
 
-  // C-family languages (JS, TS, Python, Java, Go, etc.)
   const keywords: Record<string, string> = {
     javascript: "function|const|let|var|return|class|import|export|from|default|if|else|for|while|do|switch|case|break|continue|new|this|try|catch|finally|throw|async|await|yield|typeof|instanceof|in|of|delete|void|null|undefined|true|false|NaN|Infinity|super|extends|static|get|set|constructor",
     typescript: "function|const|let|var|return|class|import|export|from|default|if|else|for|while|do|switch|case|break|continue|new|this|try|catch|finally|throw|async|await|yield|typeof|instanceof|in|of|delete|void|null|undefined|true|false|NaN|Infinity|super|extends|static|get|set|constructor|interface|type|enum|namespace|declare|as|is|keyof|readonly|abstract|implements|private|protected|public|override|satisfies|infer|never|unknown|any",
@@ -159,7 +122,7 @@ function highlightSyntax(code: string, language: string): string {
 
   const kwPattern = keywords[lang] || keywords.javascript;
   const regex = new RegExp(
-    `(\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/|#.*$)|(["'\`])([\\s\\S]*?)\\2|(\\b(?:${kwPattern})\\b)|(\\b\\d+(?:\\.\\d+)?\\b)|(\\b\\w+)(?=\\s*\\()`,
+    `(\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/|#.*$)|(["\`'])([\\s\\S]*?)\\2|(\\b(?:${kwPattern})\\b)|(\\b\\d+(?:\\.\\d+)?\\b)|(\\b\\w+)(?=\\s*\\()`,
     "gm"
   );
 
@@ -193,20 +156,14 @@ export function extractToc(markdown: string): TocEntry[] {
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-
-    if (!baseId) baseId = "heading";
+      .replace(/-+/g, "-") || "heading";
 
     let id = baseId;
     let counter = 1;
-    while (usedIds.has(id)) {
-      id = `${baseId}-${counter++}`;
-    }
+    while (usedIds.has(id)) id = `${baseId}-${counter++}`;
     usedIds.add(id);
 
-    if (level >= 2 && level <= 3) {
-      toc.push({ id, text, level });
-    }
+    if (level >= 2 && level <= 3) toc.push({ id, text, level });
   }
 
   return toc;
@@ -215,31 +172,26 @@ export function extractToc(markdown: string): TocEntry[] {
 // ── Detect if content is markdown ───────────────────────────
 export function isMarkdownContent(str: string): boolean {
   if (!str) return false;
-  // Check for markdown patterns: headings, code fences, blockquotes, lists, bold
   const markdownPatterns = [
-    /^#{1,6}\s+/m,        // headings
-    /^```/m,              // code fences
-    /^>\s+/m,             // blockquotes
-    /^\s*[-*+]\s+/m,      // unordered lists
-    /^\s*\d+\.\s+/m,      // ordered lists
-    /\*\*[^*]+\*\*/,      // bold
-    /`[^`]+`/,            // inline code
-    /\[.+\]\(.+\)/,       // links
+    /^#{1,6}\s+/m,
+    /^```/m,
+    /^>\s+/m,
+    /^\s*[-*+]\s+/m,
+    /^\s*\d+\.\s+/m,
+    /\*\*[^*]+\*\*/,
+    /`[^`]+`/,
+    /\[.+\]\(.+\)/,
   ];
-
   let matchCount = 0;
   for (const pattern of markdownPatterns) {
     if (pattern.test(str)) matchCount++;
   }
-
-  // If at least 2 markdown patterns match, treat as markdown
   return matchCount >= 2;
 }
 
-// ── Copy button helper component ────────────────────────────
+// ── Copy button ─────────────────────────────────────────────
 function CopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code);
     setCopied(true);
@@ -247,29 +199,14 @@ function CopyButton({ code }: { code: string }) {
   }, [code]);
 
   return (
-    <button
-      onClick={handleCopy}
-      className="code-block-copy"
-      title="Copy code"
-      type="button"
-    >
-      {copied ? (
-        <Check className="h-4 w-4 text-green-400" />
-      ) : (
-        <Copy className="h-4 w-4" />
-      )}
+    <button onClick={handleCopy} className="code-block-copy" title="Copy code" type="button">
+      {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
     </button>
   );
 }
 
 // ── Code Block with header ──────────────────────────────────
-function CodeBlockWithHeader({
-  code,
-  language,
-}: {
-  code: string;
-  language: string;
-}) {
+function CodeBlockWithHeader({ code, language }: { code: string; language: string }) {
   const lang = (language || "").toLowerCase().trim();
   const displayName = LANG_NAMES[lang] || (lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : "Code");
   const highlighted = useMemo(() => highlightSyntax(code, lang), [code, lang]);
@@ -290,6 +227,98 @@ function CodeBlockWithHeader({
   );
 }
 
+// ── Markdown pre-processing ──────────────────────────────────
+// Split raw markdown into alternating text/code-block chunks
+// using a reliable line-by-line parser (no regex fragility).
+interface RawChunk {
+  type: "markdown" | "code";
+  content: string;
+  language?: string;
+}
+
+function splitMarkdownCodeBlocks(markdown: string): RawChunk[] {
+  // Normalize line endings
+  const normalized = markdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n");
+
+  const chunks: RawChunk[] = [];
+  let i = 0;
+  let textLines: string[] = [];
+
+  while (i < lines.length) {
+    const line = lines[i];
+    // Check for fenced code block opening (``` or ~~~)
+    const fenceMatch = line.match(/^(`{3,}|~{3,})([\w\-+#.]*).*/);
+    if (fenceMatch) {
+      // Flush accumulated text first
+      if (textLines.length > 0) {
+        chunks.push({ type: "markdown", content: textLines.join("\n") });
+        textLines = [];
+      }
+      const fenceChar = fenceMatch[1][0]; // ` or ~
+      const fenceLen = fenceMatch[1].length; // number of fence chars
+      const lang = fenceMatch[2].trim();
+      i++;
+
+      // Collect code lines until matching closing fence
+      const codeLines: string[] = [];
+      const closingFence = fenceChar.repeat(fenceLen);
+      while (i < lines.length) {
+        const codeLine = lines[i];
+        // Closing fence: starts with fenceLen (or more) of the same fence char, nothing else
+        if (codeLine.trimEnd().match(new RegExp(`^${fenceChar === "`" ? "\\`" : "~"}{${fenceLen},}\\s*$`))) {
+          i++; // skip closing fence line
+          break;
+        }
+        codeLines.push(codeLine);
+        i++;
+      }
+
+      chunks.push({ type: "code", content: codeLines.join("\n"), language: lang });
+    } else {
+      textLines.push(line);
+      i++;
+    }
+  }
+
+  // Flush remaining text
+  if (textLines.length > 0) {
+    chunks.push({ type: "markdown", content: textLines.join("\n") });
+  }
+
+  return chunks;
+}
+
+// ── Parse markdown chunk to HTML with heading IDs ────────────
+function parseMarkdownChunk(mdText: string, usedIds: Set<string>): string {
+  if (!mdText.trim()) return "";
+
+  const customRenderer = new marked.Renderer();
+  customRenderer.heading = ({ text, depth }: { text: string; depth: number }) => {
+    const clean = text.replace(/<[^>]+>/g, "");
+    let baseId = clean
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-") || "heading";
+
+    let id = baseId;
+    let counter = 1;
+    while (usedIds.has(id)) id = `${baseId}-${counter++}`;
+    usedIds.add(id);
+
+    return `<h${depth} id="${id}">${text}</h${depth}>`;
+  };
+
+  marked.setOptions({ renderer: customRenderer, gfm: true, breaks: false });
+  return marked.parse(mdText) as string;
+}
+
+// ── Types ────────────────────────────────────────────────────
+type Segment =
+  | { type: "html"; content: string }
+  | { type: "code"; code: string; language: string };
+
 // ── Main MarkdownRenderer component ─────────────────────────
 interface MarkdownRendererProps {
   content: string;
@@ -297,115 +326,53 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
-  // Parse markdown to HTML
-  const { html, codeBlocks } = useMemo(() => {
+  const segments = useMemo((): Segment[] => {
+    if (!content) return [];
+
+    // Step 1: Split markdown into text/code chunks using line-by-line parser
+    const chunks = splitMarkdownCodeBlocks(content);
+
+    // Step 2: Parse each markdown chunk to HTML, sharing heading ID state
     const usedIds = new Set<string>();
-    const customRenderer = new marked.Renderer();
+    const result: Segment[] = [];
 
-    // Add unique IDs to headings for TOC linking
-    customRenderer.heading = ({ text, depth }: { text: string; depth: number }) => {
-      const clean = text.replace(/<[^>]+>/g, "");
-      let baseId = clean
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-");
-
-      if (!baseId) baseId = "heading";
-
-      let id = baseId;
-      let counter = 1;
-      while (usedIds.has(id)) {
-        id = `${baseId}-${counter++}`;
+    for (const chunk of chunks) {
+      if (chunk.type === "markdown") {
+        const html = parseMarkdownChunk(chunk.content, usedIds);
+        if (html.trim()) {
+          result.push({ type: "html", content: html });
+        }
+      } else {
+        // Code block
+        result.push({
+          type: "code",
+          code: chunk.content,
+          language: chunk.language || "",
+        });
       }
-      usedIds.add(id);
-
-      const tag = `h${depth}`;
-      return `<${tag} id="${id}">${text}</${tag}>`;
-    };
-
-    // Code blocks: return a placeholder that we'll replace with React components
-    customRenderer.code = ({ text, lang }: { text: string; lang?: string }) => {
-      const language = (lang || "").toLowerCase().trim();
-      const escaped = text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      // We use a custom data attribute so we can hydrate with React
-      return `<div data-code-block data-lang="${language}" data-code="${escaped}"></div>`;
-    };
-
-    marked.setOptions({
-      renderer: customRenderer,
-      gfm: true,
-      breaks: false,
-    });
-
-    let rawHtml = marked.parse(content) as string;
-
-    // Extract code blocks for React hydration
-    const blocks: Array<{ code: string; language: string }> = [];
-    const codeBlockRegex = /<div data-code-block data-lang="([^"]*)" data-code="([^"]*)"><\/div>/g;
-    let blockMatch;
-
-    while ((blockMatch = codeBlockRegex.exec(rawHtml)) !== null) {
-      blocks.push({
-        language: blockMatch[1],
-        code: blockMatch[2]
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"'),
-      });
     }
 
-    // Replace code block placeholders with indexed custom HTML tags
-    let blockIndex = 0;
-    rawHtml = rawHtml.replace(codeBlockRegex, () => {
-      return `<code-block-marker index="${blockIndex++}"></code-block-marker>`;
-    });
-
-    // Sanitize HTML, ensuring our custom tag and its index attribute are preserved
-    const sanitized = DOMPurify.sanitize(rawHtml, {
-      ADD_TAGS: ["h1", "h2", "h3", "h4", "h5", "h6", "code-block-marker"],
-      ADD_ATTR: ["id", "index"],
-      ALLOW_UNKNOWN_PROTOCOLS: false,
-    });
-
-    return { html: sanitized, codeBlocks: blocks };
+    return result;
   }, [content]);
-
-  // Split HTML by code block markers and render with React code blocks
-  const parts = useMemo(() => {
-    const segments = html.split(/<code-block-marker index="(\d+)"><\/code-block-marker>/);
-    return segments;
-  }, [html]);
 
   return (
     <div className={`prose-custom ${className}`}>
-      {parts.map((part, i) => {
-        // Even indices are HTML content, odd indices are code block indices
-        if (i % 2 === 0) {
-          if (!part.trim()) return null;
+      {segments.map((seg, i) => {
+        if (seg.type === "html") {
           return (
             <div
               key={i}
-              dangerouslySetInnerHTML={{ __html: part }}
-            />
-          );
-        } else {
-          const blockIdx = parseInt(part, 10);
-          const block = codeBlocks[blockIdx];
-          if (!block) return null;
-          return (
-            <CodeBlockWithHeader
-              key={`code-${i}`}
-              code={block.code}
-              language={block.language}
+              dangerouslySetInnerHTML={{ __html: seg.content }}
             />
           );
         }
+        return (
+          <CodeBlockWithHeader
+            key={`code-${i}`}
+            code={seg.code}
+            language={seg.language}
+          />
+        );
       })}
     </div>
   );

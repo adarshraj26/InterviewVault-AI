@@ -299,7 +299,7 @@ export default function DashboardClient({
               title: "Review Due Questions",
               description: `${dueCount} questions await revision`,
               icon: Clock,
-              href: "/revision",
+              href: "/technologies",
               gradient: "from-amber-500/10 to-orange-500/10",
               iconBg: "from-amber-500 to-orange-500",
             },

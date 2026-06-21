@@ -207,6 +207,21 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
                         trimmed.startsWith("**Q:**") || 
                         /^(?:Q|Question|Q\d+|Question\d+)\s*:/i.test(trimmed);
 
+    // Matches standard numbered lists like "1. What is CSS?"
+    const isNumberedQ = /^\d+[\s.)-]+\s+.+/.test(trimmed) && 
+                        (trimmed.endsWith("?") || 
+                         /^(what|how|why|explain|describe|compare|difference|is|are|write|implement|create|design|can|could|tell|when|where|which|who)/i.test(trimmed.replace(/^\d+[\s.)-]+\s*/, "").trim()));
+
+    // Matches bullet lists like "- What is CSS?" or "* What is CSS?"
+    const isBulletedQ = /^[\-*+]\s+.+/.test(trimmed) && 
+                        (trimmed.endsWith("?") || 
+                         /^(what|how|why|explain|describe|compare|difference|is|are|write|implement|create|design|can|could|tell|when|where|which|who)/i.test(trimmed.replace(/^[\-*+]\s*/, "").trim()));
+
+    // Matches short standalone sentences ending in "?"
+    const isShortQuestion = trimmed.endsWith("?") && 
+                            trimmed.length < 150 && 
+                            /^(what|how|why|explain|describe|compare|difference|is|are|write|implement|create|design|can|could|tell|when|where|which|who)/i.test(trimmed);
+
     let isQuestionHeader = false;
     let cleanTitle = "";
 
@@ -221,7 +236,6 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
       }
     } else {
       // H1 always triggers a question. H2 triggers a question if it represents a real question title.
-      // H3+ (###) never triggers a question and is always treated as part of the answer text.
       const isH1 = line.startsWith("# ");
       const isH2 = line.startsWith("## ");
       if (isH1 || isH2) {
@@ -230,6 +244,9 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
           isQuestionHeader = true;
           cleanTitle = rawTitle;
         }
+      } else if (isNumberedQ || isBulletedQ || isShortQuestion) {
+        isQuestionHeader = true;
+        cleanTitle = trimmed;
       }
     }
 
@@ -239,7 +256,8 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
         parsedQuestions.push(currentQuestion as ParsedQuestion);
       }
 
-      cleanTitle = cleanTitle.replace(/^\d+[\s.)-]+\s*/, "").trim();
+      // Strip leading list numbers/bullets (e.g. "1. ", "2) ", "- ", "* ")
+      cleanTitle = cleanTitle.replace(/^(?:\d+[\s.)-]*|[\-*+])\s*/, "").trim();
 
       currentQuestion = {
         title: cleanTitle,
@@ -278,6 +296,41 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
   return parsedQuestions;
 }
 
+export async function extractTextFromDocxAction(base64String: string) {
+  try {
+    const buffer = Buffer.from(base64String, "base64");
+    const JSZip = require("jszip");
+    const zip = new JSZip();
+    const loadedZip = await zip.loadAsync(buffer);
+    const docXml = await loadedZip.file("word/document.xml")?.async("string");
+    if (!docXml) {
+      return { error: "Invalid DOCX file (missing word/document.xml)" };
+    }
+    
+    // Parse paragraphs
+    const pRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
+    const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let pMatch;
+    const paragraphs: string[] = [];
+    
+    while ((pMatch = pRegex.exec(docXml)) !== null) {
+      const pContent = pMatch[1];
+      let tMatch;
+      let pText = "";
+      tRegex.lastIndex = 0;
+      while ((tMatch = tRegex.exec(pContent)) !== null) {
+        pText += tMatch[1];
+      }
+      paragraphs.push(pText);
+    }
+    
+    return { text: paragraphs.join("\n") };
+  } catch (error) {
+    console.error("DOCX text extraction error:", error);
+    return { error: "Failed to extract text from DOCX file" };
+  }
+}
+
 /**
  * Action to parse bulk text or markdown content into a list of structured questions using AI (Gemini) or a regex fallback.
  */
@@ -295,8 +348,10 @@ export async function parseBulkQuestionsAction(text: string, overrideTech?: stri
     let parsed: { questions: ParsedQuestion[] } | null = null;
     
     try {
-      const { generateStructuredOutput, buildMarkdownQuestionsParsingPrompt } = require("@/lib/ai");
-      const prompt = buildMarkdownQuestionsParsingPrompt(text);
+      const { generateStructuredOutput, buildMarkdownQuestionsParsingPrompt, buildQuestionsListParsingPrompt } = require("@/lib/ai");
+      const prompt = overrideTech
+        ? buildQuestionsListParsingPrompt(text)
+        : buildMarkdownQuestionsParsingPrompt(text);
       parsed = (await generateStructuredOutput(prompt)) as { questions: ParsedQuestion[] };
     } catch (apiError) {
       console.warn("AI bulk parsing failed, using fallback parser:", apiError);

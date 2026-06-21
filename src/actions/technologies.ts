@@ -48,6 +48,12 @@ export async function getTechnologyBySlug(slug: string) {
     include: {
       questions: {
         orderBy: { createdAt: "asc" },
+        include: {
+          revisionRecords: {
+            orderBy: { revisedAt: "desc" },
+            take: 1,
+          },
+        },
       },
       notes: {
         orderBy: { createdAt: "desc" },

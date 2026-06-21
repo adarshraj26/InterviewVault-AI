@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Clock,
   Code2,
@@ -12,8 +14,10 @@ import {
   Tag,
   X,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-renderer";
+import { ShareBar, ShareModal } from "./share-modal";
 
 /* ═══════════════════════════════════════════════════════════
    QuestionDetailView — FrontendPrep.io-style article reader
@@ -32,7 +36,9 @@ interface QuestionDetailViewProps {
     isPublic?: boolean;
   };
   technologyName: string;
+  allQuestions?: any[];
   onClose: () => void;
+  onSelectQuestion?: (q: any) => void;
 }
 
 const difficultyColors: Record<string, string> = {
@@ -49,10 +55,13 @@ function estimateReadTime(text: string): number {
 export function QuestionDetailView({
   question,
   technologyName,
+  allQuestions = [],
   onClose,
+  onSelectQuestion,
 }: QuestionDetailViewProps) {
   const [activeHeadingId, setActiveHeadingId] = useState<string>("");
   const [showMobileToc, setShowMobileToc] = useState(false);
+  const [isShareCardOpen, setIsShareCardOpen] = useState(false);
 
   const answerContent = question.answer || "";
   const isMarkdown = isMarkdownContent(answerContent);
@@ -61,7 +70,6 @@ export function QuestionDetailView({
   const fullContent = useMemo(() => {
     let content = answerContent;
     if (question.codeExample && isMarkdown) {
-      // If answer is markdown and there's a separate code example, append it
       content += `\n\n### Code Example\n\n\`\`\`${question.codeLanguage || "javascript"}\n${question.codeExample}\n\`\`\``;
     }
     return content;
@@ -74,6 +82,13 @@ export function QuestionDetailView({
   }, [fullContent, isMarkdown]);
 
   const readTime = useMemo(() => estimateReadTime(fullContent), [fullContent]);
+
+  const similarQuestions = useMemo(() => {
+    if (!allQuestions || allQuestions.length === 0) return [];
+    return allQuestions
+      .filter((q) => q.id !== question.id)
+      .slice(0, 2);
+  }, [allQuestions, question.id]);
 
   // Track active heading for TOC highlighting
   useEffect(() => {
@@ -93,7 +108,6 @@ export function QuestionDetailView({
       }
     );
 
-    // Observe all heading elements
     const timer = setTimeout(() => {
       toc.forEach(({ id }) => {
         const el = document.getElementById(id);
@@ -107,6 +121,38 @@ export function QuestionDetailView({
     };
   }, [toc]);
 
+  // Hide sidebar and make navbar full width when detail view is open
+  useEffect(() => {
+    document.body.classList.add("detail-view-open");
+
+    const desktopSidebar = document.getElementById("desktop-sidebar");
+    const mobileSidebar = document.getElementById("mobile-sidebar");
+    const mainNavbar = document.getElementById("main-navbar");
+
+    if (desktopSidebar) {
+      desktopSidebar.style.setProperty("display", "none", "important");
+    }
+    if (mobileSidebar) {
+      mobileSidebar.style.setProperty("display", "none", "important");
+    }
+    if (mainNavbar) {
+      mainNavbar.style.setProperty("left", "0", "important");
+    }
+
+    return () => {
+      document.body.classList.remove("detail-view-open");
+      if (desktopSidebar) {
+        desktopSidebar.style.removeProperty("display");
+      }
+      if (mobileSidebar) {
+        mobileSidebar.style.removeProperty("display");
+      }
+      if (mainNavbar) {
+        mainNavbar.style.removeProperty("left");
+      }
+    };
+  }, []);
+
   const scrollToHeading = useCallback((id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -115,12 +161,17 @@ export function QuestionDetailView({
     }
   }, []);
 
-  return (
+  // Render into document.body so that fixed positioning is relative to the
+  // true viewport — not a transformed/positioned ancestor from Framer Motion
+  // or the dashboard layout, which would constrain inset-0.
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex flex-col bg-background"
+      className="fixed top-16 inset-x-0 bottom-0 z-[200] flex flex-col bg-background"
     >
       {/* Top Bar */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -147,7 +198,7 @@ export function QuestionDetailView({
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-16">
-          <div className="flex gap-8 items-start">
+          <div className="flex gap-8 items-stretch">
             {/* Main Article */}
             <main className="flex-1 min-w-0">
               {/* Article Header */}
@@ -235,6 +286,75 @@ export function QuestionDetailView({
                   </>
                 )}
               </article>
+
+              {/* Share Bar */}
+              <ShareBar
+                questionTitle={question.title}
+                technologyName={technologyName}
+                onOpenShareCard={() => setIsShareCardOpen(true)}
+                className="mt-8"
+              />
+
+              {/* More Technical Questions */}
+              {similarQuestions.length > 0 && (
+                <div className="mt-12 space-y-6">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">More Technical Questions</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Expand your mastery. Deep dive into other challenges in this category.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {similarQuestions.map((q) => {
+                      const snippet = q.answer
+                        ? q.answer.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
+                        : "";
+                      const qReadTime = estimateReadTime(q.answer || "");
+                      return (
+                        <div
+                          key={q.id}
+                          onClick={() => onSelectQuestion?.(q)}
+                          className="group p-5 rounded-2xl border border-border/60 bg-card/30 hover:bg-card/50 hover:border-primary/30 transition-all cursor-pointer flex flex-col justify-between min-h-[160px] relative overflow-hidden"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                              <span className="text-[9px] font-bold tracking-widest uppercase text-primary">
+                                {technologyName}
+                              </span>
+                              <span className={cn(
+                                "text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase",
+                                q.difficulty === "EASY"
+                                  ? "bg-green-500/10 border-green-500/20 text-green-400"
+                                  : q.difficulty === "HARD"
+                                    ? "bg-red-500/10 border-red-500/20 text-red-400"
+                                    : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+                              )}>
+                                {q.difficulty}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                              {q.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-2 leading-relaxed">
+                              {snippet || "Read full explanation."}
+                            </p>
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-border/20 flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {qReadTime} min read
+                            </span>
+                            <span className="text-primary font-semibold flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                              View Solution <ArrowRight className="h-3 w-3" />
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </main>
 
             {/* Table of Contents Sidebar */}
@@ -325,6 +445,18 @@ export function QuestionDetailView({
           </AnimatePresence>
         </>
       )}
-    </motion.div>
+
+      {/* Share Card Modal */}
+      <ShareModal
+        isOpen={isShareCardOpen}
+        onClose={() => setIsShareCardOpen(false)}
+        question={{
+          title: question.title,
+          answer: fullContent,
+        }}
+        technologyName={technologyName}
+      />
+    </motion.div>,
+    document.body
   );
 }

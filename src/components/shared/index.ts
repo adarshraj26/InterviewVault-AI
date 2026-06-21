@@ -6,4 +6,7 @@ export { GradientText } from "./gradient-text";
 export { RichTextEditor } from "./rich-text-editor";
 export { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-renderer";
 export { QuestionDetailView } from "./question-detail-view";
+export { ConfirmDeleteButton } from "./confirm-delete";
+export { ShareBar, ShareModal } from "./share-modal";
+
 

@@ -28,14 +28,6 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, nextUrl));
   }
 
-  // Check admin routes
-  if (isAdminRoute && isLoggedIn) {
-    const role = (req.auth?.user as { role?: string })?.role;
-    if (role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl));
-    }
-  }
-
   return NextResponse.next();
 });
 

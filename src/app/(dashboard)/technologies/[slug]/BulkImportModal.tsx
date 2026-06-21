@@ -13,8 +13,10 @@ import { getTechnologies } from "@/actions/technologies";
 import { 
   parseBulkQuestionsAction, 
   getAllUserQuestionTitlesAction, 
-  bulkImportQuestionsAction 
+  bulkImportQuestionsAction,
+  extractTextFromDocxAction
 } from "@/actions/bulk-import";
+import { extractTextFromPdfAction } from "@/actions/resume";
 
 // Levenshtein similarity check helper
 function stringSimilarity(str1: string, str2: string): number {
@@ -171,8 +173,9 @@ export function BulkImportModal({
   const handleMdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploaded = e.target.files?.[0];
     if (!uploaded) return;
-    if (!uploaded.name.toLowerCase().endsWith(".md")) {
-      toast.error("Please upload a Markdown (.md) file");
+    const name = uploaded.name.toLowerCase();
+    if (!name.endsWith(".md") && !name.endsWith(".pdf") && !name.endsWith(".docx")) {
+      toast.error("Please upload a Markdown (.md), PDF (.pdf), or Word (.docx) file");
       return;
     }
     setFile(uploaded);
@@ -335,15 +338,59 @@ export function BulkImportModal({
   const handleNextStep1 = async () => {
     if (source === "markdown") {
       if (!file) {
-        toast.error("Please upload a markdown file");
+        toast.error("Please upload a file first");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = e.target?.result as string || "";
-        await processQuestionsText(text);
-      };
-      reader.readAsText(file);
+      
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".pdf")) {
+        setLoading(true);
+        try {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const base64 = Buffer.from(arrayBuffer).toString("base64");
+            const res = await extractTextFromPdfAction(base64);
+            if (res.error) {
+              toast.error(res.error);
+              setLoading(false);
+              return;
+            }
+            await processQuestionsText(res.text || "");
+          };
+          reader.readAsArrayBuffer(file);
+        } catch (err) {
+          toast.error("Failed to read PDF file");
+          setLoading(false);
+        }
+      } else if (name.endsWith(".docx")) {
+        setLoading(true);
+        try {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const base64 = Buffer.from(arrayBuffer).toString("base64");
+            const res = await extractTextFromDocxAction(base64);
+            if (res.error) {
+              toast.error(res.error);
+              setLoading(false);
+              return;
+            }
+            await processQuestionsText(res.text || "");
+          };
+          reader.readAsArrayBuffer(file);
+        } catch (err) {
+          toast.error("Failed to read Word file");
+          setLoading(false);
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target?.result as string || "";
+          await processQuestionsText(text);
+        };
+        reader.readAsText(file);
+      }
     } else if (source === "paste") {
       if (!pasteText.trim()) {
         toast.error("Please paste markdown or plain text questions");
@@ -612,7 +659,7 @@ export function BulkImportModal({
                   {/* Mode Selector */}
                   <div className="grid grid-cols-4 gap-2 bg-black/20 p-1.5 rounded-xl border border-border">
                     {[
-                      { id: "markdown", label: "Markdown", icon: FileText },
+                      { id: "markdown", label: "Upload File", icon: FileText },
                       { id: "paste", label: "Bulk Paste", icon: Edit3 },
                       { id: "zip", label: "ZIP Archive", icon: FileArchive },
                       { id: "github", label: "GitHub Repo", icon: GitBranch },
@@ -651,15 +698,15 @@ export function BulkImportModal({
                           type="file" 
                           ref={mdFileInputRef} 
                           onChange={handleMdFileChange} 
-                          accept=".md" 
+                          accept=".md,.pdf,.docx" 
                           className="hidden" 
                         />
                         <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                         <p className="text-sm font-semibold mb-1">
-                          {file ? file.name : "Select a Markdown (.md) File"}
+                          {file ? file.name : "Select Q&A File (.md, .pdf, .docx)"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {file ? `${(file.size / 1024).toFixed(1)} KB` : "Drag & drop your question sheet here or browse."}
+                          {file ? `${(file.size / 1024).toFixed(1)} KB` : "Drag & drop your questions document (.md, .pdf, or .docx) here or browse."}
                         </p>
                       </motion.div>
                     )}
