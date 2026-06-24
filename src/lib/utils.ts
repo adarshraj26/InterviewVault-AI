@@ -54,3 +54,14 @@ export function truncate(text: string, length: number): string {
   if (text.length <= length) return text;
   return text.slice(0, length) + "...";
 }
+
+export function stripMarkdown(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/```[\s\S]*?```/g, "") // Remove code blocks entirely
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .replace(/[#*`~_\[\]>]/g, "") // Remove Markdown characters
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim();
+}
+

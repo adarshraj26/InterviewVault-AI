@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Upload, FileText, GitBranch, FileArchive, Loader2, AlertTriangle, Check, 
+import {
+  Upload, FileText, GitBranch, FileArchive, Loader2, AlertTriangle, Check,
   Trash2, Edit3, CheckCircle, Search, ArrowRight, ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { cn } from "@/lib/utils";
 import { getTechnologies } from "@/actions/technologies";
-import { 
-  parseBulkQuestionsAction, 
-  getAllUserQuestionTitlesAction, 
+import {
+  parseBulkQuestionsAction,
+  getAllUserQuestionTitlesAction,
   bulkImportQuestionsAction,
   extractTextFromDocxAction
 } from "@/actions/bulk-import";
@@ -22,10 +22,10 @@ import { extractTextFromPdfAction } from "@/actions/resume";
 function stringSimilarity(str1: string, str2: string): number {
   const s1 = (str1 || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const s2 = (str2 || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  
+
   if (s1 === s2) return 1.0;
   if (s1.length === 0 || s2.length === 0) return 0.0;
-  
+
   const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
   for (let i = 0; i <= s1.length; i += 1) track[0][i] = i;
   for (let j = 0; j <= s2.length; j += 1) track[j][0] = j;
@@ -94,25 +94,25 @@ export function BulkImportModal({
       setSource(initialSource);
     }
   }, [isOpen, initialSource]);
-  
+
   // Sources data
   const [file, setFile] = useState<File | null>(null);
   const [pasteText, setPasteText] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [githubSubpath, setGithubSubpath] = useState("");
-  
+
   // Loader and File checklists
   const [loading, setLoading] = useState(false);
   const [fileChecklist, setFileChecklist] = useState<SelectedFile[]>([]);
-  
+
   // Existing data caches
   const [existingTechs, setExistingTechs] = useState<any[]>([]);
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
-  
+
   // Parsed Questions state
   const [parsedQuestions, setParsedQuestions] = useState<TempParsedQuestion[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Import Progress & Done details
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -156,7 +156,7 @@ export function BulkImportModal({
     setImportResult(null);
     setImportProgress(0);
     setIsImporting(false);
-    
+
     // Reset file input DOM values so reselecting same file triggers onChange
     if (mdFileInputRef.current) mdFileInputRef.current.value = "";
     if (zipFileInputRef.current) zipFileInputRef.current.value = "";
@@ -189,14 +189,14 @@ export function BulkImportModal({
       return;
     }
     setFile(uploaded);
-    
+
     // Parse ZIP contents to build checklist
     setLoading(true);
     try {
       const zip = new JSZip();
       const loadedZip = await zip.loadAsync(uploaded);
       const mdFiles: SelectedFile[] = [];
-      
+
       loadedZip.forEach((relativePath, entry) => {
         if (!entry.dir && relativePath.toLowerCase().endsWith(".md")) {
           mdFiles.push({
@@ -247,7 +247,7 @@ export function BulkImportModal({
       }
       const data = await response.json();
       const tree = data.tree || [];
-      
+
       let mdFiles = tree
         .filter((item: any) => item.type === "blob" && item.path.toLowerCase().endsWith(".md"))
         .map((item: any) => ({
@@ -259,7 +259,7 @@ export function BulkImportModal({
       // Filter by subpath if provided
       if (githubSubpath.trim()) {
         const sub = githubSubpath.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
-        mdFiles = mdFiles.filter((f: SelectedFile) => 
+        mdFiles = mdFiles.filter((f: SelectedFile) =>
           f.path.toLowerCase().startsWith(sub + "/")
         );
       }
@@ -298,7 +298,7 @@ export function BulkImportModal({
       const mapped = questions.map((q: any) => {
         let bestMatch: any = null;
         let maxSim = 0;
-        
+
         for (const eq of allQuestions) {
           const sim = stringSimilarity(q.title, eq.title);
           if (sim > maxSim) {
@@ -306,9 +306,9 @@ export function BulkImportModal({
             bestMatch = eq;
           }
         }
-        
+
         const isDuplicate = maxSim >= 0.85;
-        
+
         return {
           tempId: Math.random().toString(36).substring(2, 9),
           title: q.title,
@@ -341,7 +341,7 @@ export function BulkImportModal({
         toast.error("Please upload a file first");
         return;
       }
-      
+
       const name = file.name.toLowerCase();
       if (name.endsWith(".pdf")) {
         setLoading(true);
@@ -513,7 +513,7 @@ export function BulkImportModal({
 
     setIsImporting(true);
     setStep(4);
-    
+
     // Simulate progression for visual feedback
     const interval = setInterval(() => {
       setImportProgress(p => {
@@ -539,7 +539,7 @@ export function BulkImportModal({
       }));
 
       const res = await bulkImportQuestionsAction(importPayload);
-      
+
       clearInterval(interval);
       setImportProgress(100);
 
@@ -563,8 +563,8 @@ export function BulkImportModal({
   };
 
   // Filter parsed list by search
-  const filteredParsed = parsedQuestions.filter(q => 
-    q.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredParsed = parsedQuestions.filter(q =>
+    q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     q.technology.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -604,8 +604,8 @@ export function BulkImportModal({
                   Import dozens of interview questions instantly with duplicate checks
                 </p>
               </div>
-              <button 
-                onClick={onClose} 
+              <button
+                onClick={onClose}
                 className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer text-sm"
               >
                 ✕
@@ -621,8 +621,8 @@ export function BulkImportModal({
                 { s: 4, label: "4. Importing" },
                 { s: 5, label: "5. Summary" },
               ].map(indicator => (
-                <div 
-                  key={indicator.s} 
+                <div
+                  key={indicator.s}
                   className={cn(
                     "flex items-center gap-1.5 transition-all",
                     step === indicator.s ? "text-primary" : step > indicator.s ? "text-green-500" : "text-muted-foreground/60"
@@ -637,7 +637,7 @@ export function BulkImportModal({
 
             {/* Scrollable Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              
+
               {/* SKELETON LOADER FOR PARSING */}
               {loading && (
                 <div className="py-20 flex flex-col items-center justify-center gap-3">
@@ -671,8 +671,8 @@ export function BulkImportModal({
                           onClick={() => handleSourceSelect(src.id as ImportSource)}
                           className={cn(
                             "flex flex-col items-center justify-center py-3 rounded-lg text-xs font-semibold transition-all gap-1.5 border border-transparent cursor-pointer",
-                            source === src.id 
-                              ? "bg-primary/10 text-primary border-primary/20" 
+                            source === src.id
+                              ? "bg-primary/10 text-primary border-primary/20"
                               : "text-muted-foreground hover:bg-muted/30"
                           )}
                         >
@@ -694,12 +694,12 @@ export function BulkImportModal({
                         className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
                         onClick={() => mdFileInputRef.current?.click()}
                       >
-                        <input 
-                          type="file" 
-                          ref={mdFileInputRef} 
-                          onChange={handleMdFileChange} 
-                          accept=".md,.pdf,.docx" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          ref={mdFileInputRef}
+                          onChange={handleMdFileChange}
+                          accept=".md,.pdf,.docx"
+                          className="hidden"
                         />
                         <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                         <p className="text-sm font-semibold mb-1">
@@ -741,12 +741,12 @@ export function BulkImportModal({
                         className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
                         onClick={() => zipFileInputRef.current?.click()}
                       >
-                        <input 
-                          type="file" 
-                          ref={zipFileInputRef} 
-                          onChange={handleZipFileChange} 
-                          accept=".zip" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          ref={zipFileInputRef}
+                          onChange={handleZipFileChange}
+                          accept=".zip"
+                          className="hidden"
                         />
                         <FileArchive className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                         <p className="text-sm font-semibold mb-1">
@@ -807,8 +807,8 @@ export function BulkImportModal({
                       onChange={(e) => setAutoFormat(e.target.checked)}
                       className="rounded border-border focus:ring-primary h-4 w-4 accent-primary cursor-pointer"
                     />
-                    <label 
-                      htmlFor="autoFormatAnswers" 
+                    <label
+                      htmlFor="autoFormatAnswers"
                       className="text-xs font-semibold text-foreground/90 select-none cursor-pointer flex items-center gap-1.5"
                     >
                       ✨ Auto Format Answers Before Import
@@ -846,15 +846,15 @@ export function BulkImportModal({
 
                   <div className="border border-border rounded-xl max-h-[300px] overflow-y-auto divide-y divide-border/60 bg-black/10">
                     {fileChecklist.map((item, idx) => (
-                      <div 
-                        key={item.path} 
+                      <div
+                        key={item.path}
                         onClick={() => handleToggleFileCheck(idx)}
                         className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors cursor-pointer text-xs font-medium"
                       >
                         <input
                           type="checkbox"
                           checked={item.selected}
-                          onChange={() => {}} // handled by click of parent row
+                          onChange={() => { }} // handled by click of parent row
                           className="rounded border-border focus:ring-primary h-3.5 w-3.5 accent-primary"
                         />
                         <FileText className="h-4 w-4 text-muted-foreground/70 shrink-0" />
@@ -873,7 +873,7 @@ export function BulkImportModal({
                     {/* Bulk controls */}
                     <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
                       <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Bulk Edit:</span>
-                      
+
                       {/* Bulk Workspace select */}
                       <select
                         onChange={(e) => {
@@ -951,8 +951,8 @@ export function BulkImportModal({
                           {filteredParsed.map((q, idx) => {
                             const isDup = !!q.duplicateId;
                             return (
-                              <tr 
-                                key={q.tempId} 
+                              <tr
+                                key={q.tempId}
                                 className={cn(
                                   "hover:bg-muted/10 transition-colors",
                                   isDup && q.importStrategy === "skip" && "opacity-60 bg-amber-500/5",
@@ -963,7 +963,7 @@ export function BulkImportModal({
                                 <td className="p-3 text-center text-muted-foreground font-semibold tabular-nums">
                                   {idx + 1}
                                 </td>
-                                
+
                                 {/* Title cell (editable) */}
                                 <td className="p-3">
                                   <input
@@ -1027,7 +1027,7 @@ export function BulkImportModal({
                                       <div className="text-[10px] text-muted-foreground truncate max-w-[200px]" title={q.duplicateTitle}>
                                         In: <strong className="text-foreground">{q.duplicateWorkspace}</strong>
                                       </div>
-                                      
+
                                       {/* Strategy Select options */}
                                       <div className="flex gap-1 mt-1 bg-black/30 p-0.5 rounded border border-border/50 w-fit shrink-0">
                                         {[
@@ -1042,10 +1042,10 @@ export function BulkImportModal({
                                             onClick={() => handleUpdateField(q.tempId, "importStrategy", opt.id)}
                                             className={cn(
                                               "px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer",
-                                              q.importStrategy === opt.id 
+                                              q.importStrategy === opt.id
                                                 ? opt.id === "skip" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                                                   : opt.id === "replace" ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                                                  : "bg-green-500/20 text-green-400 border border-green-500/30"
+                                                    : "bg-green-500/20 text-green-400 border border-green-500/30"
                                                 : "text-muted-foreground/60 hover:text-foreground"
                                             )}
                                           >
@@ -1090,10 +1090,10 @@ export function BulkImportModal({
                     <p className="font-semibold text-lg">Importing questions...</p>
                     <p className="text-xs text-muted-foreground">Uploading, deduplicating, and updating your revision schedule.</p>
                   </div>
-                  
+
                   {/* Progress bar */}
                   <div className="w-full h-3 rounded-full bg-muted overflow-hidden border border-border/80">
-                    <div 
+                    <div
                       className="h-full rounded-full gradient-bg transition-all duration-300"
                       style={{ width: `${importProgress}%` }}
                     />
@@ -1108,7 +1108,7 @@ export function BulkImportModal({
                   <div className="p-3 bg-emerald-500/15 rounded-full w-fit mx-auto border border-emerald-500/30 text-emerald-500">
                     <CheckCircle className="h-10 w-10 animate-bounce" />
                   </div>
-                  
+
                   <div>
                     <h3 className="text-xl font-bold">Import Completed Successfully!</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">

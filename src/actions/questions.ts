@@ -76,6 +76,7 @@ export async function updateQuestion(
     difficulty?: Difficulty;
     interviewFrequency?: InterviewFrequency;
     tags?: string[];
+    revisionStatus?: RevisionStatus;
   }
 ) {
   const session = await auth();
@@ -193,7 +194,7 @@ export async function recordRevision(questionId: string, quality: number) {
     // Quality: 0 to 5
     // 0: "Total blackout", 1: "Incorrect response, but remembered upon seeing it", 2: "Incorrect response, but easy to recall", 
     // 3: "Correct response recalled with serious difficulty", 4: "Correct response after a hesitation", 5: "Perfect response"
-    
+
     // Get last revision record or set defaults
     const lastRecord = await db.revisionRecord.findFirst({
       where: { questionId, userId: session.user.id },
@@ -202,7 +203,7 @@ export async function recordRevision(questionId: string, quality: number) {
 
     let repetitions = lastRecord ? lastRecord.quality >= 3 ? 1 : 0 : 0; // Simple approximation of repetition count
     let interval = 1; // in days
-    
+
     if (quality >= 3) {
       if (repetitions === 0) {
         interval = 1;
@@ -210,7 +211,7 @@ export async function recordRevision(questionId: string, quality: number) {
         interval = 6;
       } else {
         // approximate previous interval
-        const prevIntervalDays = lastRecord?.nextReviewAt 
+        const prevIntervalDays = lastRecord?.nextReviewAt
           ? Math.max(1, Math.round((lastRecord.nextReviewAt.getTime() - lastRecord.revisedAt.getTime()) / (1000 * 60 * 60 * 24)))
           : 1;
         interval = Math.round(prevIntervalDays * 2.5); // Default EF = 2.5
@@ -409,14 +410,14 @@ export async function generateAIQuestions(technologyId: string, technologyName: 
   try {
     const { generateStructuredOutput, buildQuestionGenerationPrompt } = require("@/lib/ai");
     const qPrompt = buildQuestionGenerationPrompt(technologyName, 5);
-    
+
     let qParsed: any = null;
     try {
       qParsed = await generateStructuredOutput(qPrompt);
     } catch (apiError) {
       console.warn("AI Question generation failed, using local fallback generator:", apiError);
     }
-    
+
     if (!qParsed || !qParsed.questions) {
       const fallbackQuestions = [
         {
@@ -500,7 +501,7 @@ function localSlugify(text: string) {
 
 function guessTechnology(title: string, answer: string): string {
   const combined = `${title} ${answer}`.toLowerCase();
-  
+
   if (combined.includes("c++") || combined.includes("cpp") || combined.includes("destructor") || combined.includes("virtual function") || combined.includes("stl ") || combined.includes("template class")) {
     return "C++";
   }
@@ -549,7 +550,7 @@ function guessTechnology(title: string, answer: string): string {
   if (combined.includes("css") || combined.includes("html") || combined.includes("tailwind")) {
     return "HTML & CSS";
   }
-  
+
   return "General";
 }
 
@@ -592,10 +593,10 @@ function fallbackMarkdownParser(text: string): AIParsedQuestion[] {
 
     // Check for new question indicator
     // Matches: "## 1. Question Title", "### What is...", "**Question:** What is...", "Q: What is..."
-    const isQuestionHeader = 
-      line.startsWith("#") || 
-      trimmed.startsWith("**Question:**") || 
-      trimmed.startsWith("**Q:**") || 
+    const isQuestionHeader =
+      line.startsWith("#") ||
+      trimmed.startsWith("**Question:**") ||
+      trimmed.startsWith("**Q:**") ||
       /^(?:Q|Question|Q\d+|Question\d+)\s*:/i.test(trimmed);
 
     if (isQuestionHeader) {
@@ -695,7 +696,7 @@ export async function importMarkdownQuestionsAction(markdownText: string) {
 
   try {
     let parsed: { questions: AIParsedQuestion[] } | null = null;
-    
+
     // 1. Try Gemini parser first
     try {
       const { generateStructuredOutput, buildMarkdownQuestionsParsingPrompt } = require("@/lib/ai");
@@ -797,8 +798,8 @@ export async function importMarkdownQuestionsAction(markdownText: string) {
     revalidatePath("/technologies");
     revalidatePath("/revision");
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       questionsImported: questionsImportedCount,
       workspacesCreated: workspacesCreatedCount
     };

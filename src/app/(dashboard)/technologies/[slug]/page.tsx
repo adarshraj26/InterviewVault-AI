@@ -39,7 +39,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent, ConfirmDeleteButton } from "@/components/shared";
-import { cn } from "@/lib/utils";
+import { cn, stripMarkdown } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
 import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction, recordRevision } from "@/actions/questions";
 import { toast } from "sonner";
@@ -1047,12 +1047,7 @@ export default function TechnologyWorkspacePage() {
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {paginatedQuestions.map((q, index) => {
-            const cleanAnswer = q.answer
-              ? q.answer
-                  .replace(/<[^>]*>/g, "") // remove HTML tags
-                  .replace(/\s+/g, " ") // normalize spacing
-                  .trim()
-              : "";
+            const cleanAnswer = stripMarkdown(q.answer);
               
             return (
               <motion.div
@@ -1701,80 +1696,128 @@ export default function TechnologyWorkspacePage() {
             allQuestions={questions}
             onClose={() => setDetailViewQuestion(null)}
             onSelectQuestion={setDetailViewQuestion}
+            onUpdateQuestion={(updatedQ) => {
+              setDetailViewQuestion(updatedQ);
+              setQuestions((prev) => prev.map(q => q.id === updatedQ.id ? updatedQ : q));
+            }}
           />
         )}
       </AnimatePresence>
 
 
 
-      {/* Interactive Spaced Repetition Practice Modal */}
+      {/* ── Right-Side Sliding Practice Drawer ─────────────────────────── */}
+      {/* Peek Tab — always visible on the right edge */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center">
+        <button
+          type="button"
+          onClick={() => {
+            if (!isPracticeOpen) handleStartPractice();
+            else setIsPracticeOpen(false);
+          }}
+          className={cn(
+            "group flex flex-col items-center justify-center gap-1.5 py-5 px-2 rounded-l-2xl border border-r-0 border-border/60 shadow-2xl shadow-black/40 transition-all duration-300 cursor-pointer",
+            isPracticeOpen
+              ? "bg-primary text-white border-primary/60"
+              : "bg-[#0b0f1a]/90 backdrop-blur-xl hover:bg-primary/10 hover:border-primary/40 text-muted-foreground hover:text-primary"
+          )}
+          title={isPracticeOpen ? "Close Practice Panel" : "Open Practice Panel"}
+        >
+          {dueCount > 0 && !isPracticeOpen && (
+            <span className="absolute -top-2 -left-2 bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-background shadow-lg">
+              {dueCount}
+            </span>
+          )}
+          <Sparkles className={cn("h-4 w-4 transition-all", !isPracticeOpen && "animate-pulse")} />
+          <span
+            className="text-[9px] font-black uppercase tracking-widest leading-tight"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            Practice
+          </span>
+          <motion.div
+            animate={{ rotate: isPracticeOpen ? 0 : 180 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </motion.div>
+        </button>
+      </div>
+
+      {/* Practice Drawer Panel */}
       <AnimatePresence>
         {isPracticeOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
+          <>
+            {/* Dimmed overlay — does NOT cover full screen, just the page content */}
             <motion.div
+              key="practice-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
               onClick={() => setIsPracticeOpen(false)}
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] cursor-pointer"
             />
 
-            {/* Modal Box */}
+            {/* Sliding Drawer */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-lg rounded-2xl border border-border/85 bg-[#070b14]/90 backdrop-blur-xl p-6 shadow-2xl relative z-10 flex flex-col min-h-[420px] max-h-[90vh] overflow-y-auto"
+              key="practice-drawer"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 35 }}
+              className="fixed right-0 top-0 h-full z-40 w-full max-w-md flex flex-col border-l border-border/60 bg-[#070b14]/95 backdrop-blur-2xl shadow-2xl shadow-black/50"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
                 <div>
-                  <h3 className="font-bold text-base flex items-center gap-1.5">
-                    <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
-                    <span>Practice Session: {tech.name}</span>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                    <span>Practice Session</span>
                   </h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Active Recall & Spaced Repetition</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{tech.name} · Active Recall & Spaced Repetition</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsPracticeOpen(false)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer border border-transparent hover:border-border/40"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {!practiceDone && practiceStack.length > 0 ? (
-                <div className="flex flex-col flex-1">
-                  {/* Progress bar */}
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-5">
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${((practiceIndex) / practiceStack.length) * 100}%` }}
-                    />
-                  </div>
+              {/* Drawer Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {!practiceDone && practiceStack.length > 0 ? (
+                  <div className="flex flex-col gap-5">
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                        <span>Card {practiceIndex + 1} of {practiceStack.length}</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                          practiceStack[practiceIndex].revisionStatus === "MASTERED"
+                            ? "bg-green-500/10 border-green-500/20 text-green-400"
+                            : practiceStack[practiceIndex].revisionStatus === "LEARNING" || practiceStack[practiceIndex].revisionStatus === "REVISED_ONCE"
+                              ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                              : "bg-slate-500/10 border-slate-500/20 text-slate-400"
+                        )}>
+                          {practiceStack[practiceIndex].revisionStatus === "NOT_STARTED" ? "New Card" : "Reviewing"}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                        <motion.div
+                          className="h-full bg-primary rounded-full"
+                          animate={{ width: `${((practiceIndex) / practiceStack.length) * 100}%` }}
+                          transition={{ duration: 0.4 }}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                    <span>Card {practiceIndex + 1} of {practiceStack.length}</span>
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                      practiceStack[practiceIndex].revisionStatus === "MASTERED"
-                        ? "bg-green-500/10 border-green-500/20 text-green-400"
-                        : practiceStack[practiceIndex].revisionStatus === "LEARNING" || practiceStack[practiceIndex].revisionStatus === "REVISED_ONCE"
-                          ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
-                          : "bg-slate-500/10 border-slate-500/20 text-slate-400"
-                    )}>
-                      {practiceStack[practiceIndex].revisionStatus === "NOT_STARTED" ? "New Card" : "Reviewing"}
-                    </span>
-                  </div>
-
-                  {/* Card Content container */}
-                  <div className="flex-1 flex flex-col justify-between space-y-4">
                     {/* Question Card */}
-                    <div className="flex-1 rounded-2xl bg-white/5 border border-border p-6 flex flex-col justify-center min-h-[160px] relative overflow-hidden group">
-                      <div className="absolute top-3 left-4 text-[9px] font-bold text-primary/60 tracking-wider uppercase">{tech.name} Question</div>
-                      <h4 className="text-lg font-bold text-center text-foreground leading-snug">
+                    <div className="rounded-2xl bg-white/4 border border-border/60 p-6 flex flex-col justify-center min-h-[160px] relative overflow-hidden">
+                      <div className="absolute top-3 left-4 text-[9px] font-bold text-primary/50 tracking-widest uppercase">{tech.name}</div>
+                      <h4 className="text-lg font-bold text-center text-foreground leading-snug pt-4">
                         {practiceStack[practiceIndex].title}
                       </h4>
                     </div>
@@ -1787,12 +1830,12 @@ export default function TechnologyWorkspacePage() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="flex justify-center py-4"
+                          className="flex justify-center py-3"
                         >
                           <button
                             type="button"
                             onClick={() => setRevealAnswer(true)}
-                            className="px-6 py-3 rounded-xl gradient-bg text-white hover:opacity-90 transition-all font-semibold text-sm shadow-lg shadow-primary/20 cursor-pointer flex items-center gap-2"
+                            className="px-6 py-3 rounded-xl gradient-bg text-white hover:opacity-90 transition-all font-semibold text-sm shadow-lg shadow-primary/20 cursor-pointer flex items-center gap-2 w-full justify-center"
                           >
                             <Eye className="h-4 w-4" />
                             Reveal Answer
@@ -1803,10 +1846,10 @@ export default function TechnologyWorkspacePage() {
                           key="answer-content"
                           initial={{ opacity: 0, y: 15 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="space-y-4 border-t border-border/50 pt-4"
+                          className="space-y-4"
                         >
-                          {/* Render Markdown/HTML Answer */}
-                          <div className="max-h-[220px] overflow-y-auto rounded-xl bg-black/25 border border-border/30 p-4 text-sm leading-relaxed">
+                          {/* Answer content */}
+                          <div className="max-h-[260px] overflow-y-auto rounded-xl bg-black/30 border border-border/30 p-4 text-sm leading-relaxed">
                             {practiceStack[practiceIndex].answer ? (
                               isMarkdownContent(practiceStack[practiceIndex].answer) ? (
                                 <MarkdownRenderer content={practiceStack[practiceIndex].answer} />
@@ -1821,8 +1864,6 @@ export default function TechnologyWorkspacePage() {
                             ) : (
                               <p className="text-muted-foreground italic">No answer explanation provided.</p>
                             )}
-                            
-                            {/* Code example if any */}
                             {practiceStack[practiceIndex].codeExample && (
                               <div className="mt-4 pt-4 border-t border-border/20">
                                 <MarkdownRenderer
@@ -1832,16 +1873,16 @@ export default function TechnologyWorkspacePage() {
                             )}
                           </div>
 
-                          {/* Spaced repetition rating options */}
+                          {/* Rate recall */}
                           <div className="space-y-2.5">
-                            <label className="block text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">Rate your recall quality:</label>
+                            <label className="block text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Rate your recall:</label>
                             <div className="grid grid-cols-5 gap-1.5">
                               {[
-                                { label: "Forgot", value: 1, desc: "Total blackout", color: "hover:bg-red-500 hover:text-white border-red-500/20 text-red-400 bg-red-500/5 hover:shadow-lg hover:shadow-red-500/20" },
-                                { label: "Hard", value: 2, desc: "Incorrect recall", color: "hover:bg-orange-500 hover:text-white border-orange-500/20 text-orange-400 bg-orange-500/5 hover:shadow-lg hover:shadow-orange-500/20" },
-                                { label: "Okay", value: 3, desc: "Recalled with effort", color: "hover:bg-yellow-500 hover:text-black border-yellow-500/20 text-yellow-400 bg-yellow-500/5 hover:shadow-lg hover:shadow-yellow-500/20" },
-                                { label: "Good", value: 4, desc: "Slight hesitation", color: "hover:bg-blue-500 hover:text-white border-blue-500/20 text-blue-400 bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/20" },
-                                { label: "Easy", value: 5, desc: "Perfect recall", color: "hover:bg-green-500 hover:text-white border-green-500/20 text-green-400 bg-green-500/5 hover:shadow-lg hover:shadow-green-500/20" },
+                                { label: "Forgot", value: 1, color: "hover:bg-red-500 hover:text-white border-red-500/20 text-red-400 bg-red-500/5" },
+                                { label: "Hard", value: 2, color: "hover:bg-orange-500 hover:text-white border-orange-500/20 text-orange-400 bg-orange-500/5" },
+                                { label: "Okay", value: 3, color: "hover:bg-yellow-500 hover:text-black border-yellow-500/20 text-yellow-400 bg-yellow-500/5" },
+                                { label: "Good", value: 4, color: "hover:bg-blue-500 hover:text-white border-blue-500/20 text-blue-400 bg-blue-500/5" },
+                                { label: "Easy", value: 5, color: "hover:bg-green-500 hover:text-white border-green-500/20 text-green-400 bg-green-500/5" },
                               ].map((g) => (
                                 <button
                                   key={g.value}
@@ -1851,7 +1892,6 @@ export default function TechnologyWorkspacePage() {
                                     "flex flex-col items-center py-2 px-1 rounded-xl border text-[10px] font-bold transition-all cursor-pointer",
                                     g.color
                                   )}
-                                  title={g.desc}
                                 >
                                   <span className="text-xs mb-0.5">{g.value}</span>
                                   <span>{g.label}</span>
@@ -1863,43 +1903,44 @@ export default function TechnologyWorkspacePage() {
                       )}
                     </AnimatePresence>
                   </div>
-                </div>
-              ) : (
-                /* Celebration session completion view */
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8"
-                >
-                  <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-3xl animate-bounce">
-                    🎉
-                  </div>
-                  <h4 className="text-xl font-bold text-foreground">Practice Session Completed!</h4>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Amazing job! You have revised all <span className="font-semibold text-primary">{practiceStack.length} questions</span> in your <span className="font-semibold text-foreground">{tech.name}</span> workspace today.
-                  </p>
-                  <p className="text-xs text-muted-foreground">Spaced repetition reviews recorded successfully.</p>
-                  
-                  <div className="pt-4 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={handleStartPractice}
-                      className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      Practice Again
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsPracticeOpen(false)}
-                      className="gradient-bg text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-primary/25"
-                    >
-                      Close Session
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                ) : (
+                  /* Completion view */
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center text-center space-y-4 py-16"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-3xl animate-bounce">
+                      🎉
+                    </div>
+                    <h4 className="text-xl font-bold text-foreground">Session Complete!</h4>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      You&apos;ve reviewed all{" "}
+                      <span className="font-semibold text-primary">{practiceStack.length} questions</span>{" "}
+                      in your <span className="font-semibold text-foreground">{tech.name}</span> workspace.
+                    </p>
+                    <p className="text-xs text-muted-foreground">Spaced repetition records updated.</p>
+                    <div className="pt-4 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleStartPractice}
+                        className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+                      >
+                        Practice Again
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsPracticeOpen(false)}
+                        className="gradient-bg text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-primary/25"
+                      >
+                        Close Panel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </motion.div>
-          </div>
+          </>
         )}
       </AnimatePresence>
     </>

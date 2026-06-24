@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Share2, Check, Copy, Download, X, Sparkles, Eye, AlignLeft } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, stripMarkdown } from "@/lib/utils";
 
 // ── Brand SVG icons ─────────────────────────────────────────
 export const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -305,17 +305,7 @@ export function ShareModal({ isOpen, onClose, question, technologyName }: ShareM
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const cleanText = (raw: string) =>
-    raw
-      .replace(/<[^>]*>/g, "")
-      .replace(/#+\s*/g, "")
-      .replace(/\*{1,2}/g, "")
-      .replace(/`+/g, "")
-      .replace(/>\s*/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const snippet = cleanText(question.answer || "");
+  const snippet = stripMarkdown(question.answer || "");
 
   // Render card to hidden canvas and return data URL
   const generateCardDataUrl = useCallback((): string | null => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
-import { marked } from "marked";
+import { marked, Marked } from "marked";
 import { Code2, Copy, Check } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════
@@ -143,15 +143,21 @@ export interface TocEntry {
   level: number;
 }
 
-export function extractToc(markdown: string): TocEntry[] {
-  const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+export function extractToc(content: string): TocEntry[] {
   const toc: TocEntry[] = [];
   const usedIds = new Set<string>();
+  
+  // Match Markdown # Heading or HTML <h2>Heading</h2>
+  const regex = /^(#{1,4})\s+(.+)$|<h([1234])[^>]*>(.*?)<\/h\3>/gmi;
   let match;
 
-  while ((match = headingRegex.exec(markdown)) !== null) {
-    const level = match[1].length;
-    const text = match[2].replace(/[*_`~\[\]]/g, "").trim();
+  while ((match = regex.exec(content)) !== null) {
+    const isMarkdown = !!match[1];
+    const level = isMarkdown ? match[1].length : parseInt(match[3], 10);
+    let rawText = isMarkdown ? match[2] : match[4];
+    
+    const text = rawText.replace(/<[^>]+>/g, "").replace(/[*_`~\[\]]/g, "").trim();
+
     let baseId = text
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
@@ -163,7 +169,7 @@ export function extractToc(markdown: string): TocEntry[] {
     while (usedIds.has(id)) id = `${baseId}-${counter++}`;
     usedIds.add(id);
 
-    if (level >= 2 && level <= 3) toc.push({ id, text, level });
+    toc.push({ id, text, level });
   }
 
   return toc;
@@ -227,73 +233,26 @@ function CodeBlockWithHeader({ code, language }: { code: string; language: strin
   );
 }
 
-// ── Markdown pre-processing ──────────────────────────────────
-// Split raw markdown into alternating text/code-block chunks
-// using a reliable line-by-line parser (no regex fragility).
-interface RawChunk {
-  type: "markdown" | "code";
-  content: string;
-  language?: string;
-}
+// ── Parse full markdown to segments (html + code blocks) ─────
+// Uses marked to parse the ENTIRE markdown string in one pass.
+// Code blocks are replaced with indexed placeholders so we can inject
+// our custom CodeBlockWithHeader components without fighting the parser.
 
-function splitMarkdownCodeBlocks(markdown: string): RawChunk[] {
-  // Normalize line endings
-  const normalized = markdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = normalized.split("\n");
+type Segment =
+  | { type: "html"; content: string }
+  | { type: "code"; code: string; language: string };
 
-  const chunks: RawChunk[] = [];
-  let i = 0;
-  let textLines: string[] = [];
+const CODE_PLACEHOLDER = "IVAULTCODEBLOCK";
 
-  while (i < lines.length) {
-    const line = lines[i];
-    // Check for fenced code block opening (``` or ~~~)
-    const fenceMatch = line.match(/^(`{3,}|~{3,})([\w\-+#.]*).*/);
-    if (fenceMatch) {
-      // Flush accumulated text first
-      if (textLines.length > 0) {
-        chunks.push({ type: "markdown", content: textLines.join("\n") });
-        textLines = [];
-      }
-      const fenceChar = fenceMatch[1][0]; // ` or ~
-      const fenceLen = fenceMatch[1].length; // number of fence chars
-      const lang = fenceMatch[2].trim();
-      i++;
+function parseMarkdownToSegments(content: string): Segment[] {
+  if (!content) return [];
 
-      // Collect code lines until matching closing fence
-      const codeLines: string[] = [];
-      const closingFence = fenceChar.repeat(fenceLen);
-      while (i < lines.length) {
-        const codeLine = lines[i];
-        // Closing fence: starts with fenceLen (or more) of the same fence char, nothing else
-        if (codeLine.trimEnd().match(new RegExp(`^${fenceChar === "`" ? "\\`" : "~"}{${fenceLen},}\\s*$`))) {
-          i++; // skip closing fence line
-          break;
-        }
-        codeLines.push(codeLine);
-        i++;
-      }
-
-      chunks.push({ type: "code", content: codeLines.join("\n"), language: lang });
-    } else {
-      textLines.push(line);
-      i++;
-    }
-  }
-
-  // Flush remaining text
-  if (textLines.length > 0) {
-    chunks.push({ type: "markdown", content: textLines.join("\n") });
-  }
-
-  return chunks;
-}
-
-// ── Parse markdown chunk to HTML with heading IDs ────────────
-function parseMarkdownChunk(mdText: string, usedIds: Set<string>): string {
-  if (!mdText.trim()) return "";
+  const usedIds = new Set<string>();
+  const codeBlocks: Array<{ code: string; language: string }> = [];
 
   const customRenderer = new marked.Renderer();
+
+  // Add anchor IDs to headings for TOC scrollspy
   customRenderer.heading = ({ text, depth }: { text: string; depth: number }) => {
     const clean = text.replace(/<[^>]+>/g, "");
     let baseId = clean
@@ -306,18 +265,46 @@ function parseMarkdownChunk(mdText: string, usedIds: Set<string>): string {
     let counter = 1;
     while (usedIds.has(id)) id = `${baseId}-${counter++}`;
     usedIds.add(id);
-
-    return `<h${depth} id="${id}">${text}</h${depth}>`;
+    return `<h${depth} id="${id}" class="scroll-mt-24">${text}</h${depth}>\n`;
   };
 
-  marked.setOptions({ renderer: customRenderer, gfm: true, breaks: false });
-  return marked.parse(mdText) as string;
-}
+  // Replace each fenced code block with an indexed placeholder
+  customRenderer.code = ({ text, lang }: { text: string; lang?: string }) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push({ code: text, language: lang || "" });
+    return `<${CODE_PLACEHOLDER} data-idx="${idx}"></${CODE_PLACEHOLDER}>`;
+  };
 
-// ── Types ────────────────────────────────────────────────────
-type Segment =
-  | { type: "html"; content: string }
-  | { type: "code"; code: string; language: string };
+  // Parse the ENTIRE markdown string in one shot using the thread-safe Marked class
+  const markedInstance = new Marked({ renderer: customRenderer, gfm: true, breaks: false });
+  const fullHtml = markedInstance.parse(content) as string;
+
+  // Split HTML on placeholder tags and rebuild as Segment[]
+  const placeholderRegex = new RegExp(
+    `<${CODE_PLACEHOLDER}\\s+data-idx="(\\d+)"><\\/${CODE_PLACEHOLDER}>`,
+    "g"
+  );
+
+  const segments: Segment[] = [];
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = placeholderRegex.exec(fullHtml)) !== null) {
+    const htmlBefore = fullHtml.slice(lastIndex, m.index);
+    if (htmlBefore.trim()) segments.push({ type: "html", content: htmlBefore });
+
+    const idx = parseInt(m[1], 10);
+    const block = codeBlocks[idx];
+    if (block) segments.push({ type: "code", code: block.code, language: block.language });
+
+    lastIndex = m.index + m[0].length;
+  }
+
+  const trailing = fullHtml.slice(lastIndex);
+  if (trailing.trim()) segments.push({ type: "html", content: trailing });
+
+  return segments;
+}
 
 // ── Main MarkdownRenderer component ─────────────────────────
 interface MarkdownRendererProps {
@@ -326,34 +313,7 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
-  const segments = useMemo((): Segment[] => {
-    if (!content) return [];
-
-    // Step 1: Split markdown into text/code chunks using line-by-line parser
-    const chunks = splitMarkdownCodeBlocks(content);
-
-    // Step 2: Parse each markdown chunk to HTML, sharing heading ID state
-    const usedIds = new Set<string>();
-    const result: Segment[] = [];
-
-    for (const chunk of chunks) {
-      if (chunk.type === "markdown") {
-        const html = parseMarkdownChunk(chunk.content, usedIds);
-        if (html.trim()) {
-          result.push({ type: "html", content: html });
-        }
-      } else {
-        // Code block
-        result.push({
-          type: "code",
-          code: chunk.content,
-          language: chunk.language || "",
-        });
-      }
-    }
-
-    return result;
-  }, [content]);
+  const segments = useMemo(() => parseMarkdownToSegments(content), [content]);
 
   return (
     <div className={`prose-custom ${className}`}>

@@ -8,5 +8,5 @@ export { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-rend
 export { QuestionDetailView } from "./question-detail-view";
 export { ConfirmDeleteButton } from "./confirm-delete";
 export { ShareBar, ShareModal } from "./share-modal";
-
-
+export { DailyChallenge } from "./daily-challenge";
+export * from "./footer";

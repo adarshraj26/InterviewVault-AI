@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { GlassCard, ConfirmDeleteButton } from "@/components/shared";
+import { GlassCard, ConfirmDeleteButton, DailyChallenge } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { TECH_ICONS } from "@/constants";
 import { getTechnologies, createTechnology, deleteTechnology, updateTechnology } from "@/actions/technologies";
@@ -258,15 +258,6 @@ export default function TechnologiesPage() {
             Your personalized interview preparation workspaces
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleStartCreateTech}
-            className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Add Technology
-          </button>
-        </div>
       </motion.div>
 
       {/* Search & Filter */}
@@ -367,10 +358,10 @@ export default function TechnologiesPage() {
                       <span className={cn(
                         "text-xs font-medium px-2 py-0.5 rounded-full",
                         progress >= 70
-                          ? "bg-green-500/10 text-green-500"
-                          : progress >= 40
-                            ? "bg-yellow-500/10 text-yellow-500"
-                            : "bg-red-500/10 text-red-500"
+                           ? "bg-green-500/10 text-green-500"
+                           : progress >= 40
+                             ? "bg-yellow-500/10 text-yellow-500"
+                             : "bg-red-500/10 text-red-500"
                       )}>
                         {progress}% ready
                       </span>
@@ -403,8 +394,40 @@ export default function TechnologiesPage() {
               </motion.div>
             );
           })}
+
+          {/* Add Technology Card Box */}
+          <motion.div variants={fadeInUp}>
+            <button
+              onClick={handleStartCreateTech}
+              className="w-full text-left h-full focus:outline-none cursor-pointer"
+            >
+              <GlassCard
+                hover
+                className="relative overflow-hidden group border border-dashed border-border/60 hover:border-primary/50 flex flex-col items-center justify-center min-h-[260px] h-full text-center transition-all bg-card/5 hover:bg-card/10"
+              >
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <div className="w-14 h-14 rounded-full border border-dashed border-border group-hover:border-primary/40 group-hover:bg-primary/5 flex items-center justify-center transition-all duration-300">
+                    <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                      Add New Technology
+                    </h3>
+                    <p className="text-xs text-muted-foreground/60 mt-1.5 max-w-[180px] leading-relaxed">
+                      Create a custom preparation workspace
+                    </p>
+                  </div>
+                </div>
+                {/* Hover glow */}
+                <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full gradient-bg opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
+              </GlassCard>
+            </button>
+          </motion.div>
         </motion.div>
       )}
+
+      {/* Floating Daily Challenge Drawer Overlay */}
+      <DailyChallenge />
 
       {/* Add/Edit Technology Modal */}
       <AnimatePresence>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo, useTransition, useRef } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -13,11 +14,16 @@ import {
   List,
   Tag,
   X,
+  CheckCircle,
+  Bookmark,
+  ChevronRight,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { cn, stripMarkdown } from "@/lib/utils";
 import { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-renderer";
 import { ShareBar, ShareModal } from "./share-modal";
+import { Footer } from "@/components/shared";
+import { updateQuestion } from "@/actions/questions";
 
 /* ═══════════════════════════════════════════════════════════
    QuestionDetailView — FrontendPrep.io-style article reader
@@ -34,11 +40,13 @@ interface QuestionDetailViewProps {
     interviewFrequency: string;
     tags?: string[];
     isPublic?: boolean;
+    revisionStatus?: string;
   };
   technologyName: string;
   allQuestions?: any[];
   onClose: () => void;
   onSelectQuestion?: (q: any) => void;
+  onUpdateQuestion?: (q: any) => void;
 }
 
 const difficultyColors: Record<string, string> = {
@@ -58,10 +66,15 @@ export function QuestionDetailView({
   allQuestions = [],
   onClose,
   onSelectQuestion,
+  onUpdateQuestion,
 }: QuestionDetailViewProps) {
+  const [isShareCardOpen, setIsShareCardOpen] = useState(false);
+  const [isDone, setIsDone] = useState(question.revisionStatus === "MASTERED");
+  const [isSaved, setIsSaved] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [activeHeadingId, setActiveHeadingId] = useState<string>("");
   const [showMobileToc, setShowMobileToc] = useState(false);
-  const [isShareCardOpen, setIsShareCardOpen] = useState(false);
+  const tocSidebarRef = useRef<HTMLElement>(null);
 
   const answerContent = question.answer || "";
   const isMarkdown = isMarkdownContent(answerContent);
@@ -75,11 +88,45 @@ export function QuestionDetailView({
     return content;
   }, [answerContent, question.codeExample, question.codeLanguage, isMarkdown]);
 
-  // Extract table of contents from markdown
+  // Extract table of contents
   const toc = useMemo(() => {
-    if (!isMarkdown) return [];
     return extractToc(fullContent);
-  }, [fullContent, isMarkdown]);
+  }, [fullContent]);
+
+  const handleToggleDone = () => {
+    const newIsDone = !isDone;
+    setIsDone(newIsDone);
+
+    const updatedStatus = newIsDone ? "MASTERED" : "NOT_STARTED";
+    if (onUpdateQuestion) {
+      onUpdateQuestion({ ...question, revisionStatus: updatedStatus });
+    }
+
+    startTransition(async () => {
+      await updateQuestion(question.id, { revisionStatus: updatedStatus });
+    });
+  };
+
+  // Inject IDs into HTML content for scrollspy to work
+  const processedHtmlContent = useMemo(() => {
+    if (isMarkdown || !answerContent) return answerContent;
+    let usedIds = new Set<string>();
+    return answerContent.replace(/<h([23])([^>]*)>(.*?)<\/h\1>/gi, (match, level, attrs, text) => {
+      let baseId = text
+        .replace(/<[^>]+>/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-") || "heading";
+      let id = baseId;
+      let counter = 1;
+      while (usedIds.has(id)) id = `${baseId}-${counter++}`;
+      usedIds.add(id);
+      // Ensure we don't duplicate id if it already exists in attrs
+      if (attrs.includes('id=')) return match;
+      return `<h${level} id="${id}"${attrs}>${text}</h${level}>`;
+    });
+  }, [answerContent, isMarkdown]);
 
   const readTime = useMemo(() => estimateReadTime(fullContent), [fullContent]);
 
@@ -90,36 +137,65 @@ export function QuestionDetailView({
       .slice(0, 2);
   }, [allQuestions, question.id]);
 
-  // Track active heading for TOC highlighting
+  // Track active heading for TOC highlighting using container scroll listener
   useEffect(() => {
     if (toc.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveHeadingId(entry.target.id);
+    const container = document.getElementById('question-scroll-container');
+    if (!container) return;
+
+    let rafId: number;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const scrollTop = container.scrollTop;
+        let currentId = toc[0].id;
+        for (const { id } of toc) {
+          const el = document.getElementById(id);
+          if (el) {
+            const offset = el.offsetTop - container.offsetTop;
+            if (offset <= scrollTop + 80) {
+              currentId = id;
+            } else {
+              break;
+            }
           }
         }
-      },
-      {
-        rootMargin: "-80px 0px -70% 0px",
-        threshold: 0.1,
-      }
-    );
-
-    const timer = setTimeout(() => {
-      toc.forEach(({ id }) => {
-        const el = document.getElementById(id);
-        if (el) observer.observe(el);
+        setActiveHeadingId(currentId);
       });
-    }, 100);
+    };
+
+    // Initial call
+    onScroll();
+    container.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      clearTimeout(timer);
-      observer.disconnect();
+      cancelAnimationFrame(rafId);
+      container.removeEventListener('scroll', onScroll);
     };
   }, [toc]);
+
+  // Auto-scroll the TOC sidebar smoothly to keep the active item visible
+  useEffect(() => {
+    if (!activeHeadingId || !tocSidebarRef.current) return;
+    const sidebar = tocSidebarRef.current;
+    const activeBtn = sidebar.querySelector(`[data-toc-id="${activeHeadingId}"]`) as HTMLElement | null;
+    if (activeBtn) {
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      const relativeTop = btnRect.top - sidebarRect.top + sidebar.scrollTop;
+      const targetScrollTop = relativeTop - sidebar.clientHeight / 2 + activeBtn.clientHeight / 2;
+      sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+    }
+  }, [activeHeadingId]);
+
+  const scrollToHeading = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setShowMobileToc(false);
+    }
+  };
 
   // Hide sidebar and make navbar full width when detail view is open
   useEffect(() => {
@@ -153,14 +229,6 @@ export function QuestionDetailView({
     };
   }, []);
 
-  const scrollToHeading = useCallback((id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      setShowMobileToc(false);
-    }
-  }, []);
-
   // Render into document.body so that fixed positioning is relative to the
   // true viewport — not a transformed/positioned ancestor from Framer Motion
   // or the dashboard layout, which would constrain inset-0.
@@ -186,9 +254,9 @@ export function QuestionDetailView({
 
           {/* Breadcrumb */}
           <nav className="hidden md:flex items-center gap-2 text-xs font-semibold text-muted-foreground bg-card/60 backdrop-blur-md px-4 py-2 rounded-xl border border-border">
-            <span className="hover:text-foreground transition-all cursor-pointer">Questions</span>
+            <Link href="/technologies" className="hover:text-foreground transition-all">Technologies</Link>
             <span className="text-muted-foreground/40">›</span>
-            <span className="hover:text-foreground transition-all cursor-pointer">{technologyName}</span>
+            <button onClick={onClose} className="hover:text-foreground transition-all cursor-pointer">{technologyName}</button>
             <span className="text-muted-foreground/40">›</span>
             <span className="text-foreground font-bold truncate max-w-[250px]">{question.title}</span>
           </nav>
@@ -196,11 +264,82 @@ export function QuestionDetailView({
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-16">
-          <div className="flex gap-8 items-stretch">
+      <div id="question-scroll-container" className="flex-1 overflow-y-auto relative scroll-smooth">
+        <div className="max-w-7xl mx-auto pl-0 pr-4 md:pr-6 pt-8 pb-16">
+          <div className="flex gap-12 lg:gap-20 items-start justify-center max-w-[1400px] mx-auto">
+            {/* Dynamic Premium Guide Navigation (Left Side) */}
+            {toc.length > 0 && (
+              <aside ref={tocSidebarRef} className="hidden lg:flex flex-col w-72 shrink-0 sticky top-24 self-start h-[calc(100vh-10rem)] overflow-y-auto custom-scrollbar bg-card/40 backdrop-blur-3xl border border-border/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)] rounded-[1.5rem] p-5 z-20 transition-all mb-4">
+
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-6 px-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-[14px] bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20 border border-white/10">
+                    <List className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                      Contents
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                      Article Outline
+                    </p>
+                  </div>
+                </div>
+
+                {/* Navigation List */}
+                <nav className="relative flex flex-col gap-1 w-full">
+                  <div className="absolute left-[13px] top-3 bottom-3 w-px bg-gradient-to-b from-indigo-500/0 via-indigo-500/20 to-purple-500/0" />
+
+                  {toc.map(({ id, text, level }) => {
+                    const isActive = activeHeadingId === id;
+                    const indent = level === 1 ? 0 : level === 2 ? 0 : level === 3 ? 16 : 32;
+
+                    return (
+                      <button
+                        key={id}
+                        data-toc-id={id}
+                        onClick={() => scrollToHeading(id)}
+                        className={cn(
+                          "relative flex items-center w-full text-left py-2.5 px-3 rounded-2xl transition-all duration-300 group cursor-pointer",
+                          isActive ? "bg-foreground/[0.04]" : "hover:bg-foreground/[0.02]"
+                        )}
+                        style={{ paddingLeft: `${indent + 36}px` }}
+                      >
+                        {/* Active Indicator Dot */}
+                        <div className="absolute left-[11px] top-1/2 -translate-y-1/2 flex items-center justify-center">
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full transition-all duration-500",
+                            isActive
+                              ? "bg-indigo-500 dark:bg-indigo-400 scale-100 shadow-[0_0_12px_rgba(99,102,241,0.5)] dark:shadow-[0_0_12px_rgba(129,140,248,1)]"
+                              : "bg-foreground/10 scale-75 group-hover:scale-100 group-hover:bg-foreground/20"
+                          )} />
+                          {isActive && (
+                            <motion.div
+                              layoutId="active-toc-indicator"
+                              className="absolute w-5 h-5 rounded-full bg-indigo-500/20 blur-[2px]"
+                              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            />
+                          )}
+                        </div>
+
+                        {/* Text */}
+                        <span className={cn(
+                          "text-[13px] leading-snug transition-all duration-300 truncate",
+                          isActive
+                            ? "text-foreground font-semibold tracking-wide"
+                            : "text-muted-foreground/80 group-hover:text-foreground/90"
+                        )}>
+                          {text}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
+            )}
+
             {/* Main Article */}
-            <main className="flex-1 min-w-0">
+            <main className="flex-1 min-w-0 max-w-3xl">
               {/* Article Header */}
               <header className="mb-8 pb-6 border-b border-border/50">
                 <div className="flex items-center flex-wrap gap-2 mb-3">
@@ -223,34 +362,67 @@ export function QuestionDetailView({
                   )}
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-                  {question.title}
-                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+                      {question.title}
+                    </h1>
 
-                <div className="flex items-center flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{readTime} min read</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    <span>{question.interviewFrequency === "VERY_COMMON" ? "🔥 Very Common" : question.interviewFrequency === "COMMON" ? "📌 Common" : "💤 Rare"}</span>
-                  </div>
-                  {question.tags && question.tags.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5" />
-                      <div className="flex gap-1">
-                        {question.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/50 font-medium"
-                          >
-                            {tag.replace("_", " ")}
-                          </span>
-                        ))}
+                    <div className="flex items-center flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>{readTime} min read</span>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5" />
+                        <span>{question.interviewFrequency === "VERY_COMMON" ? "🔥 Very Common" : question.interviewFrequency === "COMMON" ? "📌 Common" : "💤 Rare"}</span>
+                      </div>
+                      {question.tags && question.tags.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <Tag className="h-3.5 w-3.5" />
+                          <div className="flex gap-1">
+                            {question.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/50 font-medium"
+                              >
+                                {tag.replace("_", " ")}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleToggleDone}
+                      disabled={isPending}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                        isDone
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                          : "bg-black/20 border-border/50 text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      {isDone ? "Done" : "Mark as Done"}
+                    </button>
+                    <button
+                      onClick={() => setIsSaved(!isSaved)}
+                      className={cn(
+                        "p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center",
+                        isSaved
+                          ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                          : "bg-black/20 border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      title={isSaved ? "Saved" : "Save for later"}
+                    >
+                      <Bookmark className={cn("h-4 w-4", isSaved && "fill-current")} />
+                    </button>
+                  </div>
                 </div>
               </header>
 
@@ -263,7 +435,7 @@ export function QuestionDetailView({
                     {answerContent ? (
                       <div
                         className="rich-text-content text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: answerContent }}
+                        dangerouslySetInnerHTML={{ __html: processedHtmlContent }}
                       />
                     ) : !question.codeExample ? (
                       <p className="text-sm text-muted-foreground italic py-8 text-center">
@@ -307,9 +479,7 @@ export function QuestionDetailView({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {similarQuestions.map((q) => {
-                      const snippet = q.answer
-                        ? q.answer.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
-                        : "";
+                      const snippet = q.answer ? stripMarkdown(q.answer) : "";
                       const qReadTime = estimateReadTime(q.answer || "");
                       return (
                         <div
@@ -356,48 +526,27 @@ export function QuestionDetailView({
                 </div>
               )}
             </main>
-
-            {/* Table of Contents Sidebar */}
-            {toc.length > 0 && (
-              <aside className="hidden lg:block w-64 shrink-0">
-                <div className="toc-sidebar">
-                  <div className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground mb-3">
-                    On This Page
-                  </div>
-                  <nav className="space-y-0.5 border-l border-border/30 pl-4">
-                    {toc.map(({ id, text, level }) => (
-                      <button
-                        key={id}
-                        onClick={() => scrollToHeading(id)}
-                        className={cn(
-                          "toc-link w-full text-left cursor-pointer",
-                          level === 3 && "toc-link-h3",
-                          activeHeadingId === id && "active"
-                        )}
-                      >
-                        {text}
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-              </aside>
-            )}
           </div>
         </div>
+        {/* Footer inside scroll container */}
+        <Footer />
       </div>
 
-      {/* Mobile TOC toggle */}
+      {/* Modern Floating Mobile TOC Button */}
       {toc.length > 0 && (
         <>
-          <button
-            onClick={() => setShowMobileToc(!showMobileToc)}
-            className="fixed bottom-6 right-6 z-50 lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-full bg-card/95 backdrop-blur-xl border border-border text-sm font-semibold text-foreground shadow-lg shadow-black/10 hover:bg-muted/80 transition-all cursor-pointer"
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowMobileToc(true)}
+            className="fixed bottom-6 right-6 z-50 lg:hidden flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_30px_rgba(99,102,241,0.4)] border border-white/20 cursor-pointer"
           >
-            <List className="h-4 w-4" />
-            Contents
-          </button>
+            <List className="h-6 w-6" />
+          </motion.button>
 
-          {/* Mobile TOC drawer */}
+          {/* Sleek Mobile TOC Drawer */}
           <AnimatePresence>
             {showMobileToc && (
               <>
@@ -406,38 +555,68 @@ export function QuestionDetailView({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setShowMobileToc(false)}
-                  className="fixed inset-0 z-50 lg:hidden bg-black/40 backdrop-blur-sm"
+                  className="fixed inset-0 z-[60] lg:hidden bg-background/80 backdrop-blur-md"
                 />
                 <motion.div
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 25 }}
-                  className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-card border-t border-border rounded-t-2xl p-6 max-h-[60vh] overflow-y-auto shadow-2xl"
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="fixed bottom-0 left-0 right-0 z-[70] lg:hidden bg-card/95 backdrop-blur-3xl border-t border-border rounded-t-[2.5rem] p-6 pb-10 max-h-[75vh] overflow-hidden flex flex-col shadow-2xl"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold">Table of Contents</h3>
+                  <div className="flex items-center justify-between mb-6 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-[14px] bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20 border border-white/10">
+                        <List className="w-5 h-5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                        Article Contents
+                      </h3>
+                    </div>
                     <button
                       onClick={() => setShowMobileToc(false)}
-                      className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                      className="p-2 rounded-full hover:bg-foreground/10 transition-colors cursor-pointer"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-5 w-5 text-muted-foreground" />
                     </button>
                   </div>
-                  <nav className="space-y-1 border-l border-border/30 pl-4">
-                    {toc.map(({ id, text, level }) => (
-                      <button
-                        key={id}
-                        onClick={() => scrollToHeading(id)}
-                        className={cn(
-                          "toc-link w-full text-left cursor-pointer",
-                          level === 3 && "toc-link-h3",
-                          activeHeadingId === id && "active"
-                        )}
-                      >
-                        {text}
-                      </button>
-                    ))}
+
+                  <nav className="overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2 relative space-y-1">
+                    <div className="absolute left-[15px] top-4 bottom-4 w-px bg-gradient-to-b from-indigo-500/0 via-indigo-500/20 to-purple-500/0" />
+
+                    {toc.map(({ id, text, level }) => {
+                      const isActive = activeHeadingId === id;
+                      const indent = level === 1 ? 0 : level === 2 ? 0 : level === 3 ? 16 : 32;
+
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => scrollToHeading(id)}
+                          className={cn(
+                            "relative flex items-center w-full text-left py-3 px-4 rounded-2xl transition-all duration-300",
+                            isActive ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]"
+                          )}
+                          style={{ paddingLeft: `${indent + 40}px` }}
+                        >
+                          <div className="absolute left-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full transition-all duration-500",
+                              isActive
+                                ? "bg-indigo-500 dark:bg-indigo-400 scale-100 shadow-[0_0_12px_rgba(99,102,241,0.5)] dark:shadow-[0_0_12px_rgba(129,140,248,1)]"
+                                : "bg-foreground/10 scale-75"
+                            )} />
+                          </div>
+                          <span className={cn(
+                            "text-sm leading-snug transition-all duration-300 truncate",
+                            isActive
+                              ? "text-foreground font-semibold tracking-wide"
+                              : "text-muted-foreground/80"
+                          )}>
+                            {text}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </nav>
                 </motion.div>
               </>

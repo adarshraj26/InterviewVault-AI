@@ -6,23 +6,31 @@
 
 /* ── Light Mode Tokens ──────────────────────────────────── */
 :root {
-  --background: 248 250 252;       /* slate-50 */
-  --foreground: 15 23 42;          /* slate-900 */
+  --background: 248 250 252;
+  /* slate-50 */
+  --foreground: 15 23 42;
+  /* slate-900 */
   --card: 255 255 255;
   --card-foreground: 15 23 42;
   --popover: 255 255 255;
   --popover-foreground: 15 23 42;
-  --primary: 79 70 229;            /* indigo-600 */
+  --primary: 79 70 229;
+  /* indigo-600 */
   --primary-foreground: 255 255 255;
-  --secondary: 147 51 234;         /* purple-600 */
+  --secondary: 147 51 234;
+  /* purple-600 */
   --secondary-foreground: 255 255 255;
-  --accent: 59 130 246;            /* blue-500 */
+  --accent: 59 130 246;
+  /* blue-500 */
   --accent-foreground: 255 255 255;
-  --muted: 241 245 249;            /* slate-100 */
-  --muted-foreground: 100 116 139; /* slate-500 */
+  --muted: 241 245 249;
+  /* slate-100 */
+  --muted-foreground: 100 116 139;
+  /* slate-500 */
   --destructive: 239 68 68;
   --destructive-foreground: 255 255 255;
-  --border: 226 232 240;           /* slate-200 */
+  --border: 226 232 240;
+  /* slate-200 */
   --input: 226 232 240;
   --ring: 79 70 229;
   --success: 34 197 94;
@@ -31,45 +39,54 @@
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #3b82f6 100%);
-  --gradient-card: linear-gradient(135deg, rgba(79,70,229,0.05) 0%, rgba(147,51,234,0.05) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(79,70,229,0.15) 0%, transparent 50%);
+  --gradient-card: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%);
   --gradient-mesh: radial-gradient(at 27% 37%, #4f46e5 0%, transparent 50%),
-                   radial-gradient(at 97% 21%, #9333ea 0%, transparent 50%),
-                   radial-gradient(at 52% 99%, #3b82f6 0%, transparent 50%),
-                   radial-gradient(at 10% 29%, #06b6d4 0%, transparent 50%);
+    radial-gradient(at 97% 21%, #9333ea 0%, transparent 50%),
+    radial-gradient(at 52% 99%, #3b82f6 0%, transparent 50%),
+    radial-gradient(at 10% 29%, #06b6d4 0%, transparent 50%);
 }
 
 /* ── Dark Mode Tokens ───────────────────────────────────── */
 .dark {
-  --background: 2 6 23;            /* slate-950 */
-  --foreground: 248 250 252;       /* slate-50 */
-  --card: 15 23 42;                /* slate-900 */
+  --background: 2 6 23;
+  /* slate-950 */
+  --foreground: 248 250 252;
+  /* slate-50 */
+  --card: 15 23 42;
+  /* slate-900 */
   --card-foreground: 248 250 252;
   --popover: 15 23 42;
   --popover-foreground: 248 250 252;
-  --primary: 129 140 248;          /* indigo-400 */
+  --primary: 129 140 248;
+  /* indigo-400 */
   --primary-foreground: 15 23 42;
-  --secondary: 192 132 252;        /* purple-400 */
+  --secondary: 192 132 252;
+  /* purple-400 */
   --secondary-foreground: 15 23 42;
-  --accent: 96 165 250;            /* blue-400 */
+  --accent: 96 165 250;
+  /* blue-400 */
   --accent-foreground: 15 23 42;
-  --muted: 30 41 59;               /* slate-800 */
-  --muted-foreground: 148 163 184; /* slate-400 */
+  --muted: 30 41 59;
+  /* slate-800 */
+  --muted-foreground: 148 163 184;
+  /* slate-400 */
   --destructive: 248 113 113;
   --destructive-foreground: 15 23 42;
-  --border: 51 65 85;              /* slate-700 */
+  --border: 51 65 85;
+  /* slate-700 */
   --input: 51 65 85;
   --ring: 129 140 248;
   --success: 74 222 128;
   --warning: 251 191 36;
 
   --gradient-primary: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #60a5fa 100%);
-  --gradient-card: linear-gradient(135deg, rgba(129,140,248,0.08) 0%, rgba(192,132,252,0.08) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(129,140,248,0.2) 0%, transparent 50%);
-  --gradient-mesh: radial-gradient(at 27% 37%, rgba(79,70,229,0.3) 0%, transparent 50%),
-                   radial-gradient(at 97% 21%, rgba(147,51,234,0.2) 0%, transparent 50%),
-                   radial-gradient(at 52% 99%, rgba(59,130,246,0.2) 0%, transparent 50%),
-                   radial-gradient(at 10% 29%, rgba(6,182,212,0.15) 0%, transparent 50%);
+  --gradient-card: linear-gradient(135deg, rgba(129, 140, 248, 0.08) 0%, rgba(192, 132, 252, 0.08) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(129, 140, 248, 0.2) 0%, transparent 50%);
+  --gradient-mesh: radial-gradient(at 27% 37%, rgba(79, 70, 229, 0.3) 0%, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(147, 51, 234, 0.2) 0%, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+    radial-gradient(at 10% 29%, rgba(6, 182, 212, 0.15) 0%, transparent 50%);
 }
 
 /* ── Tailwind Theme Extension ───────────────────────────── */
@@ -108,7 +125,10 @@
   border-color: rgb(var(--border));
 }
 
-html, body, .overflow-y-auto, [class*="overflow-y-auto"] {
+html,
+body,
+.overflow-y-auto,
+[class*="overflow-y-auto"] {
   overflow-anchor: none;
 }
 
@@ -125,13 +145,16 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgb(var(--muted-foreground) / 0.3);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--muted-foreground) / 0.5);
 }
@@ -175,6 +198,7 @@ body {
   background: rgb(var(--card));
   border: none;
 }
+
 .gradient-border::before {
   content: '';
   position: absolute;
@@ -196,6 +220,7 @@ body {
 .glow {
   position: relative;
 }
+
 .glow::after {
   content: '';
   position: absolute;
@@ -207,57 +232,124 @@ body {
   transition: opacity 0.3s ease;
   z-index: -1;
 }
+
 .glow:hover::after {
   opacity: 0.4;
 }
 
 /* ── Animation Keyframes ────────────────────────────────── */
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(79, 70, 229, 0.15); }
-  50% { box-shadow: 0 0 40px rgba(79, 70, 229, 0.3); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.15);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(79, 70, 229, 0.3);
+  }
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes rotate-gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @keyframes blob {
-  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-  25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
-  50% { border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%; }
-  75% { border-radius: 60% 40% 70% 30% / 60% 30% 40% 70%; }
+
+  0%,
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+
+  25% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+
+  50% {
+    border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%;
+  }
+
+  75% {
+    border-radius: 60% 40% 70% 30% / 60% 30% 40% 70%;
+  }
 }
 
 /* ── Animation Utilities ────────────────────────────────── */
@@ -299,24 +391,44 @@ body {
 }
 
 /* ── Stagger Children ───────────────────────────────────── */
-.stagger-children > * {
+.stagger-children>* {
   animation: slide-up 0.5s ease-out both;
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+
+.stagger-children>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger-children>*:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.stagger-children>*:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.stagger-children>*:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.stagger-children>*:nth-child(5) {
+  animation-delay: 320ms;
+}
+
+.stagger-children>*:nth-child(6) {
+  animation-delay: 400ms;
+}
 
 /* ── Card Hover Effect ──────────────────────────────────── */
 .card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .card-hover:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
+
 .dark .card-hover:hover {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
@@ -329,7 +441,7 @@ body {
 
 /* ── Grid Pattern Background ────────────────────────────── */
 .grid-pattern {
-  background-image: 
+  background-image:
     linear-gradient(rgb(var(--border) / 0.3) 1px, transparent 1px),
     linear-gradient(90deg, rgb(var(--border) / 0.3) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -383,7 +495,7 @@ body {
 }
 
 /* ── Pointer Cursor for Buttons and Interactive Elements ──── */
-button, 
+button,
 [role="button"],
 input[type="submit"],
 input[type="button"],
@@ -468,8 +580,8 @@ input[type="button"],
   padding-left: 0.25rem;
 }
 
-.rich-text-content li > p,
-.tiptap-editor .ProseMirror li > p {
+.rich-text-content li>p,
+.tiptap-editor .ProseMirror li>p {
   margin: 0;
 }
 
@@ -618,13 +730,13 @@ input[type="button"],
   margin: 0.75rem 0;
 }
 
-.prose-custom ul > li {
+.prose-custom ul>li {
   position: relative;
   padding-left: 1.5rem;
   margin: 0.35rem 0;
 }
 
-.prose-custom ul > li::before {
+.prose-custom ul>li::before {
   content: '';
   position: absolute;
   left: 0.25rem;
@@ -642,14 +754,14 @@ input[type="button"],
   counter-reset: ol-counter;
 }
 
-.prose-custom ol > li {
+.prose-custom ol>li {
   position: relative;
   padding-left: 2rem;
   margin: 0.35rem 0;
   counter-increment: ol-counter;
 }
 
-.prose-custom ol > li::before {
+.prose-custom ol>li::before {
   content: counter(ol-counter) '.';
   position: absolute;
   left: 0;
@@ -662,8 +774,8 @@ input[type="button"],
 }
 
 /* Nested lists */
-.prose-custom li > ul,
-.prose-custom li > ol {
+.prose-custom li>ul,
+.prose-custom li>ol {
   margin: 0.25rem 0;
 }
 
@@ -772,35 +884,82 @@ input[type="button"],
 }
 
 /* ── Syntax Highlighting (One Dark Pro inspired) ───────── */
-.prose-custom .token-keyword    { color: #c678dd; }
-.prose-custom .token-string     { color: #98c379; }
-.prose-custom .token-number     { color: #d19a66; }
-.prose-custom .token-comment    { color: #5c6370; font-style: italic; }
-.prose-custom .token-function   { color: #61afef; }
-.prose-custom .token-class      { color: #e5c07b; }
-.prose-custom .token-operator   { color: #56b6c2; }
-.prose-custom .token-punctuation { color: #abb2bf; }
-.prose-custom .token-tag        { color: #e06c75; }
-.prose-custom .token-attr-name  { color: #d19a66; }
-.prose-custom .token-attr-value { color: #98c379; }
-.prose-custom .token-property   { color: #e06c75; }
-.prose-custom .token-builtin    { color: #e5c07b; }
-.prose-custom .token-variable   { color: #e06c75; font-style: italic; }
-.prose-custom .token-regex      { color: #98c379; }
-.prose-custom .token-constant   { color: #d19a66; }
+.prose-custom .token-keyword {
+  color: #c678dd;
+}
+
+.prose-custom .token-string {
+  color: #98c379;
+}
+
+.prose-custom .token-number {
+  color: #d19a66;
+}
+
+.prose-custom .token-comment {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.prose-custom .token-function {
+  color: #61afef;
+}
+
+.prose-custom .token-class {
+  color: #e5c07b;
+}
+
+.prose-custom .token-operator {
+  color: #56b6c2;
+}
+
+.prose-custom .token-punctuation {
+  color: #abb2bf;
+}
+
+.prose-custom .token-tag {
+  color: #e06c75;
+}
+
+.prose-custom .token-attr-name {
+  color: #d19a66;
+}
+
+.prose-custom .token-attr-value {
+  color: #98c379;
+}
+
+.prose-custom .token-property {
+  color: #e06c75;
+}
+
+.prose-custom .token-builtin {
+  color: #e5c07b;
+}
+
+.prose-custom .token-variable {
+  color: #e06c75;
+  font-style: italic;
+}
+
+.prose-custom .token-regex {
+  color: #98c379;
+}
+
+.prose-custom .token-constant {
+  color: #d19a66;
+}
 
 /* ── Horizontal Rules ──────────────────────────────────── */
 .prose-custom hr {
   margin: 2rem 0;
   border: none;
   height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgb(var(--border) / 0.5) 20%,
-    rgb(var(--border) / 0.5) 80%,
-    transparent
-  );
+  background: linear-gradient(to right,
+      transparent,
+      rgb(var(--border) / 0.5) 20%,
+      rgb(var(--border) / 0.5) 80%,
+      transparent);
 }
 
 /* ── Tables ────────────────────────────────────────────── */
@@ -893,21 +1052,38 @@ input[type="button"],
 
 /* ── Shake Animation for Hold-to-Delete ────────────────── */
 @keyframes delete-shake {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  20% { transform: scale(0.97) rotate(-1.5deg); }
-  40% { transform: scale(0.97) rotate(1.5deg); }
-  60% { transform: scale(1.03) rotate(-1.5deg); }
-  80% { transform: scale(1.03) rotate(1.5deg); }
+
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+
+  20% {
+    transform: scale(0.97) rotate(-1.5deg);
+  }
+
+  40% {
+    transform: scale(0.97) rotate(1.5deg);
+  }
+
+  60% {
+    transform: scale(1.03) rotate(-1.5deg);
+  }
+
+  80% {
+    transform: scale(1.03) rotate(1.5deg);
+  }
 }
 
 .animate-delete-shake {
   animation: delete-shake 0.15s infinite;
 }
 
-/* Hide sidebar and stretch navbar when viewing question details */
-body.detail-view-open aside {
+/* Hide main app sidebar when viewing question details */
+body.detail-view-open #desktop-sidebar {
   display: none !important;
 }
+
 body.detail-view-open header {
   left: 0 !important;
 }
