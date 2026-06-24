@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { UserRole } from "@prisma/client";
 
 function slugify(text: string) {
   return text
@@ -13,23 +14,42 @@ function slugify(text: string) {
     .replace(/\-\-+/g, "-");
 }
 
+async function getCurrentUserRole(userId: string): Promise<UserRole> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  return user?.role ?? UserRole.USER;
+}
+
 export async function getTechnologies() {
   const session = await auth();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  return await db.technology.findMany({
-    where: { userId: session.user.id },
+  // Fetch the user's personal technologies
+  const personalTechs = await db.technology.findMany({
+    where: { userId: session.user.id, isGlobal: false },
     orderBy: { order: "asc" },
     include: {
       questions: {
-        select: {
-          revisionStatus: true,
-        },
+        select: { revisionStatus: true },
       },
     },
   });
+
+  // Fetch all global technologies (admin-created, visible to everyone)
+  const globalTechs = await db.technology.findMany({
+    where: { isGlobal: true },
+    orderBy: { order: "asc" },
+    include: {
+      questions: {
+        select: { revisionStatus: true },
+      },
+    },
+  });
+
+  // Return both, global first, then personal
+  // Mark them with the isGlobal flag so the UI can badge them correctly
+  return [...globalTechs, ...personalTechs];
 }
 
 export async function getTechnologyBySlug(slug: string) {
@@ -38,7 +58,8 @@ export async function getTechnologyBySlug(slug: string) {
     throw new Error("Unauthorized");
   }
 
-  const tech = await db.technology.findUnique({
+  // Try personal technology first
+  let tech = await db.technology.findUnique({
     where: {
       userId_slug: {
         userId: session.user.id,
@@ -61,7 +82,48 @@ export async function getTechnologyBySlug(slug: string) {
     },
   });
 
-  // No auto-migration of markdown to HTML to preserve first-class markdown rendering.
+  // Fall back to global technology if no personal one found
+  if (!tech) {
+    const globalTech = await db.technology.findFirst({
+      where: { slug, isGlobal: true },
+      include: {
+        notes: { orderBy: { createdAt: "desc" } },
+      },
+    });
+
+    if (globalTech) {
+      // Merge global questions with user's personal questions in this global tech
+      const globalQuestions = await db.question.findMany({
+        where: { technologyId: globalTech.id, isGlobal: true },
+        orderBy: { createdAt: "asc" },
+        include: {
+          revisionRecords: {
+            where: { userId: session.user.id },
+            orderBy: { revisedAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      // Find any personal questions the user added to this global tech
+      const personalQuestionsInGlobal = await db.question.findMany({
+        where: { technologyId: globalTech.id, userId: session.user.id, isGlobal: false },
+        orderBy: { createdAt: "asc" },
+        include: {
+          revisionRecords: {
+            where: { userId: session.user.id },
+            orderBy: { revisedAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      tech = {
+        ...globalTech,
+        questions: [...globalQuestions, ...personalQuestionsInGlobal],
+      } as any;
+    }
+  }
 
   return tech;
 }
@@ -93,6 +155,7 @@ export async function createTechnology(name: string, description?: string) {
         slug,
         description,
         userId: session.user.id,
+        isGlobal: false,
       },
     });
 
@@ -112,6 +175,16 @@ export async function deleteTechnology(id: string) {
   }
 
   try {
+    const tech = await db.technology.findUnique({ where: { id } });
+
+    // Block non-admins from deleting global technologies
+    if (tech?.isGlobal) {
+      const role = await getCurrentUserRole(session.user.id);
+      if (role !== UserRole.ADMIN) {
+        return { error: "Permission denied: Cannot delete Official technologies" };
+      }
+    }
+
     await db.technology.delete({
       where: {
         id,
@@ -135,6 +208,16 @@ export async function updateTechnology(id: string, name: string, description?: s
   }
 
   try {
+    const tech = await db.technology.findUnique({ where: { id } });
+
+    // Block non-admins from editing global technologies
+    if (tech?.isGlobal) {
+      const role = await getCurrentUserRole(session.user.id);
+      if (role !== UserRole.ADMIN) {
+        return { error: "Permission denied: Cannot edit Official technologies" };
+      }
+    }
+
     const slug = slugify(name);
     // Check if another technology (different ID) has the same slug for this user
     const existing = await db.technology.findFirst({
@@ -149,7 +232,7 @@ export async function updateTechnology(id: string, name: string, description?: s
       return { error: "Another technology workspace with this name already exists" };
     }
 
-    const tech = await db.technology.update({
+    const updated = await db.technology.update({
       where: {
         id,
         userId: session.user.id,
@@ -162,11 +245,13 @@ export async function updateTechnology(id: string, name: string, description?: s
     });
 
     revalidatePath("/technologies");
-    revalidatePath(`/technologies/${tech.slug}`);
+    revalidatePath(`/technologies/${updated.slug}`);
     revalidatePath("/dashboard");
-    return { success: true, technology: tech };
+    return { success: true, technology: updated };
   } catch (error) {
     console.error("Update technology error:", error);
     return { error: "Failed to update technology" };
   }
 }
+
+

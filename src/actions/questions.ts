@@ -2,8 +2,13 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { Difficulty, InterviewFrequency, RevisionStatus } from "@prisma/client";
+import { Difficulty, InterviewFrequency, RevisionStatus, UserRole } from "@prisma/client";
 import { createTechnology } from "./technologies";
+
+async function getCurrentUserRole(userId: string): Promise<UserRole> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  return user?.role ?? UserRole.USER;
+}
 
 function serializeQuestion(question: any) {
   if (!question) return null;
@@ -85,6 +90,15 @@ export async function updateQuestion(
   }
 
   try {
+    // Block non-admins from editing global questions
+    const existing = await db.question.findUnique({ where: { id } });
+    if (existing?.isGlobal) {
+      const role = await getCurrentUserRole(session.user.id);
+      if (role !== UserRole.ADMIN) {
+        return { error: "Permission denied: Cannot edit Official questions" };
+      }
+    }
+
     const question = await db.question.update({
       where: {
         id,
@@ -109,6 +123,15 @@ export async function deleteQuestion(id: string) {
   }
 
   try {
+    // Block non-admins from deleting global questions
+    const existing = await db.question.findUnique({ where: { id } });
+    if (existing?.isGlobal) {
+      const role = await getCurrentUserRole(session.user.id);
+      if (role !== UserRole.ADMIN) {
+        return { error: "Permission denied: Cannot delete Official questions" };
+      }
+    }
+
     await db.question.delete({
       where: {
         id,
@@ -957,4 +980,3 @@ export async function formatAnswerAction(questionId: string) {
     return { error: getFriendlyAIError(error) };
   }
 }
-

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, ConfirmDeleteButton, DailyChallenge } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { getTechnologies, createTechnology, deleteTechnology, updateTechnology }
 import { importMarkdownQuestionsAction, recategorizeGeneralQuestionsAction } from "@/actions/questions";
 import { toast } from "sonner";
 import { BulkImportModal } from "./[slug]/BulkImportModal";
+import { useSession } from "next-auth/react";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -27,12 +28,15 @@ interface TechnologyWithQuestions {
   name: string;
   slug: string;
   description: string | null;
+  isGlobal: boolean;
   questions: {
     revisionStatus: string;
   }[];
 }
 
 export default function TechnologiesPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
   const [techList, setTechList] = useState<TechnologyWithQuestions[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -243,6 +247,9 @@ export default function TechnologiesPage() {
     tech.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const globalTechs = filteredTechs.filter((t) => t.isGlobal);
+  const personalTechs = filteredTechs.filter((t) => !t.isGlobal);
+
   return (
     <motion.div
       initial="hidden"
@@ -283,147 +290,202 @@ export default function TechnologiesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading workspaces...</p>
         </div>
-      ) : filteredTechs.length === 0 ? (
-        <div className="text-center py-20 bg-card/20 border border-border/50 rounded-2xl p-8 max-w-md mx-auto">
-          <Sparkles className="h-10 w-10 text-muted-foreground/45 mx-auto mb-4" />
-          <h3 className="font-semibold text-lg mb-1">No workspaces yet</h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            Upload your resume in Settings or add a technology manually above to create your first preparation workspace.
-          </p>
-          <button
-            onClick={handleStartCreateTech}
-            className="gradient-bg text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-95 transition-all cursor-pointer"
-          >
-            Create Workspace
-          </button>
-        </div>
       ) : (
-        <motion.div
-          variants={staggerContainer}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-        >
-          {filteredTechs.map((tech) => {
-            const questionsCount = tech.questions.length;
-            const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
-            const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
-            const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
+        <div className="space-y-10">
 
-            return (
-              <motion.div key={tech.id} variants={fadeInUp}>
-                <Link href={`/technologies/${tech.slug}`} className="cursor-pointer">
-                  <GlassCard hover className="relative overflow-hidden group">
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 z-10">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleStartEditTech(tech);
-                        }}
-                        className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
-                        title="Edit Workspace"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <ConfirmDeleteButton
-                        onDelete={() => handleDeleteTech(tech.id, tech.name)}
-                        className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
-                        tooltip="Delete Workspace"
-                      />
-                    </div>
+          {/* ── Official Technologies ──────────────────── */}
+          {globalTechs.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="h-4 w-4 text-blue-400" />
+                <h2 className="text-base font-bold text-blue-400 uppercase tracking-wider">Official Technologies</h2>
+                <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-semibold">{globalTechs.length}</span>
+              </div>
+              <motion.div variants={staggerContainer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {globalTechs.map((tech) => {
+                  const questionsCount = tech.questions.length;
+                  const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
+                  const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
+                  const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
+                  return (
+                    <motion.div key={tech.id} variants={fadeInUp}>
+                      <Link href={`/technologies/${tech.slug}`} className="cursor-pointer">
+                        <GlassCard hover className="relative overflow-hidden group border border-blue-500/10 hover:border-blue-500/30">
+                          {/* Official Badge */}
+                          <div className="absolute top-3 left-3 flex items-center gap-1 bg-blue-500/15 border border-blue-500/25 text-blue-400 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider z-10">
+                            <Shield className="h-2.5 w-2.5" /> Official
+                          </div>
 
-                    {/* Tech Icon */}
-                    <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">
-                      {icon}
-                    </div>
+                          {/* Admin Controls */}
+                          {isAdmin && (
+                            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 z-10">
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleStartEditTech(tech); }}
+                                className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                                title="Edit Global Technology"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <ConfirmDeleteButton
+                                onDelete={() => handleDeleteTech(tech.id, tech.name)}
+                                className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
+                                tooltip="Delete Global Technology"
+                              />
+                            </div>
+                          )}
 
-                    {/* Name & Stats */}
-                    <h3 className="text-lg font-semibold mb-1">{tech.name}</h3>
-                    <p className="text-xs text-muted-foreground/80 line-clamp-2 min-h-[2.25rem] mb-3 leading-relaxed">
-                      {tech.description || "Explore customized questions and preparation resources."}
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {masteredCount}/{questionsCount} questions mastered
-                    </p>
+                          {/* Tech Icon */}
+                          <div className="text-4xl mt-6 mb-4 group-hover:scale-110 transition-transform">{icon}</div>
 
-                    {/* Progress Bar */}
-                    <div className="h-2 rounded-full bg-muted overflow-hidden mb-3">
-                      <div
-                        className="h-full rounded-full gradient-bg transition-all duration-500"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
+                          {/* Name & Stats */}
+                          <h3 className="text-lg font-semibold mb-1">{tech.name}</h3>
+                          <p className="text-xs text-muted-foreground/80 line-clamp-2 min-h-[2.25rem] mb-3 leading-relaxed">
+                            {tech.description || "Official curated interview questions and answers."}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-4">{masteredCount}/{questionsCount} questions mastered</p>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between">
-                      <span className={cn(
-                        "text-xs font-medium px-2 py-0.5 rounded-full",
-                        progress >= 70
-                           ? "bg-green-500/10 text-green-500"
-                           : progress >= 40
-                             ? "bg-yellow-500/10 text-yellow-500"
-                             : "bg-red-500/10 text-red-500"
-                      )}>
-                        {progress}% ready
-                      </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        {questionsCount} Q
-                      </span>
-                    </div>
+                          {/* Progress Bar */}
+                          <div className="h-2 rounded-full bg-muted overflow-hidden mb-3">
+                            <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+                          </div>
 
-                    {/* Fix General button — only shows on General workspace */}
-                    {tech.slug === "general" && questionsCount > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleRecategorize();
-                        }}
-                        disabled={recategorizing}
-                        className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer disabled:opacity-50"
-                      >
-                        {recategorizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        Auto-sort into correct categories
-                      </button>
-                    )}
-
-                    {/* Hover glow */}
-                    <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full gradient-bg opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
-                  </GlassCard>
-                </Link>
+                          {/* Footer */}
+                          <div className="flex items-center justify-between">
+                            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", progress >= 70 ? "bg-green-500/10 text-green-500" : progress >= 40 ? "bg-yellow-500/10 text-yellow-500" : "bg-red-500/10 text-red-500")}>
+                              {progress}% ready
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" />{questionsCount} Q
+                            </span>
+                          </div>
+                          <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-blue-500 opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
+                        </GlassCard>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </motion.div>
-            );
-          })}
+            </div>
+          )}
 
-          {/* Add Technology Card Box */}
-          <motion.div variants={fadeInUp}>
-            <button
-              onClick={handleStartCreateTech}
-              className="w-full text-left h-full focus:outline-none cursor-pointer"
-            >
-              <GlassCard
-                hover
-                className="relative overflow-hidden group border border-dashed border-border/60 hover:border-primary/50 flex flex-col items-center justify-center min-h-[260px] h-full text-center transition-all bg-card/5 hover:bg-card/10"
-              >
-                <div className="flex flex-col items-center gap-3 py-6">
-                  <div className="w-14 h-14 rounded-full border border-dashed border-border group-hover:border-primary/40 group-hover:bg-primary/5 flex items-center justify-center transition-all duration-300">
-                    <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                      Add New Technology
-                    </h3>
-                    <p className="text-xs text-muted-foreground/60 mt-1.5 max-w-[180px] leading-relaxed">
-                      Create a custom preparation workspace
-                    </p>
-                  </div>
-                </div>
-                {/* Hover glow */}
-                <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full gradient-bg opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
-              </GlassCard>
-            </button>
-          </motion.div>
-        </motion.div>
+          {/* ── My Technologies ────────────────────────── */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <User className="h-4 w-4 text-primary" />
+              <h2 className="text-base font-bold text-foreground uppercase tracking-wider">My Technologies</h2>
+              <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-semibold">{personalTechs.length}</span>
+            </div>
+
+            {personalTechs.length === 0 && globalTechs.length === 0 ? (
+              <div className="text-center py-20 bg-card/20 border border-border/50 rounded-2xl p-8 max-w-md mx-auto">
+                <Sparkles className="h-10 w-10 text-muted-foreground/45 mx-auto mb-4" />
+                <h3 className="font-semibold text-lg mb-1">No workspaces yet</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Upload your resume in Settings or add a technology manually to create your first workspace.
+                </p>
+                <button
+                  onClick={handleStartCreateTech}
+                  className="gradient-bg text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-95 transition-all cursor-pointer"
+                >
+                  Create Workspace
+                </button>
+              </div>
+            ) : (
+              <motion.div variants={staggerContainer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {personalTechs.map((tech) => {
+                  const questionsCount = tech.questions.length;
+                  const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
+                  const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
+                  const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
+                  return (
+                    <motion.div key={tech.id} variants={fadeInUp}>
+                      <Link href={`/technologies/${tech.slug}`} className="cursor-pointer">
+                        <GlassCard hover className="relative overflow-hidden group">
+                          {/* Personal Badge */}
+                          <div className="absolute top-3 left-3 flex items-center gap-1 bg-primary/10 border border-primary/20 text-primary px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider z-10">
+                            <User className="h-2.5 w-2.5" /> Personal
+                          </div>
+
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 z-10">
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleStartEditTech(tech); }}
+                              className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                              title="Edit Workspace"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <ConfirmDeleteButton
+                              onDelete={() => handleDeleteTech(tech.id, tech.name)}
+                              className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
+                              tooltip="Delete Workspace"
+                            />
+                          </div>
+
+                          {/* Tech Icon */}
+                          <div className="text-4xl mt-6 mb-4 group-hover:scale-110 transition-transform">{icon}</div>
+
+                          {/* Name & Stats */}
+                          <h3 className="text-lg font-semibold mb-1">{tech.name}</h3>
+                          <p className="text-xs text-muted-foreground/80 line-clamp-2 min-h-[2.25rem] mb-3 leading-relaxed">
+                            {tech.description || "Explore customized questions and preparation resources."}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-4">{masteredCount}/{questionsCount} questions mastered</p>
+
+                          {/* Progress Bar */}
+                          <div className="h-2 rounded-full bg-muted overflow-hidden mb-3">
+                            <div className="h-full rounded-full gradient-bg transition-all duration-500" style={{ width: `${progress}%` }} />
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between">
+                            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", progress >= 70 ? "bg-green-500/10 text-green-500" : progress >= 40 ? "bg-yellow-500/10 text-yellow-500" : "bg-red-500/10 text-red-500")}>
+                              {progress}% ready
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" />{questionsCount} Q
+                            </span>
+                          </div>
+
+                          {/* Fix General button */}
+                          {tech.slug === "general" && questionsCount > 0 && (
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRecategorize(); }}
+                              disabled={recategorizing}
+                              className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer disabled:opacity-50"
+                            >
+                              {recategorizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              Auto-sort into correct categories
+                            </button>
+                          )}
+
+                          <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full gradient-bg opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
+                        </GlassCard>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+
+                {/* Add Technology Card */}
+                <motion.div variants={fadeInUp}>
+                  <button onClick={handleStartCreateTech} className="w-full text-left h-full focus:outline-none cursor-pointer">
+                    <GlassCard hover className="relative overflow-hidden group border border-dashed border-border/60 hover:border-primary/50 flex flex-col items-center justify-center min-h-[260px] h-full text-center transition-all bg-card/5 hover:bg-card/10">
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-14 h-14 rounded-full border border-dashed border-border group-hover:border-primary/40 group-hover:bg-primary/5 flex items-center justify-center transition-all duration-300">
+                          <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Add New Technology</h3>
+                          <p className="text-xs text-muted-foreground/60 mt-1.5 max-w-[180px] leading-relaxed">Create a custom preparation workspace</p>
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full gradient-bg opacity-0 group-hover:opacity-10 transition-opacity blur-xl" />
+                    </GlassCard>
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Floating Daily Challenge Drawer Overlay */}

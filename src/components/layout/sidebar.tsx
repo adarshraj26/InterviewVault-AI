@@ -190,7 +190,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed left-0 top-0 h-full w-[280px] z-50 lg:hidden bg-card border-r border-border shadow-2xl"
+            className="fixed left-0 top-0 h-full w-[280px] z-[203] lg:hidden bg-card border-r border-border shadow-2xl"
           >
             {sidebarContent}
           </motion.aside>

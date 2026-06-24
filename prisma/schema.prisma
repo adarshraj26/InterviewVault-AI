@@ -160,6 +160,7 @@ model Technology {
   icon        String?
   description String?
   order       Int     @default(0)
+  isGlobal    Boolean @default(false)
 
   userId      String
   user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -172,6 +173,7 @@ model Technology {
 
   @@unique([userId, slug])
   @@index([userId])
+  @@index([isGlobal])
 }
 
 // ── Questions ──────────────────────────────────────────────
@@ -188,6 +190,8 @@ model Question {
   tags               String[]
   revisionStatus     RevisionStatus     @default(NOT_STARTED)
   isPublic           Boolean            @default(false)
+  isCommunityShared  Boolean            @default(false)
+  isGlobal           Boolean            @default(false)
   followUpQuestions  String[]
 
   technologyId       String
@@ -206,6 +210,8 @@ model Question {
   @@index([technologyId])
   @@index([userId])
   @@index([isPublic])
+  @@index([isGlobal])
+  @@index([isCommunityShared])
 }
 
 // ── Revision System ────────────────────────────────────────

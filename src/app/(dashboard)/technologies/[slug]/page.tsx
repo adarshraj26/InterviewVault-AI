@@ -35,6 +35,8 @@ import {
   LayoutGrid,
   List,
   Upload,
+  Shield,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -42,9 +44,12 @@ import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMark
 import { cn, stripMarkdown } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
 import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction, recordRevision } from "@/actions/questions";
+import { saveToMyVault } from "@/actions/ownership";
 import { toast } from "sonner";
 import { TECH_ICONS } from "@/constants";
 import { BulkImportModal } from "./BulkImportModal";
+import { useSession } from "next-auth/react";
+import { Bookmark } from "lucide-react";
 
 /** Returns true if the string contains HTML tags (rich-text answer). */
 function isHtmlContent(str: string): boolean {
@@ -161,6 +166,9 @@ function highlightCode(code: string, language: string): string {
 
 export default function TechnologyWorkspacePage() {
   const { slug } = useParams() as { slug: string };
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const [savingToVault, setSavingToVault] = useState<string | null>(null);
   const [tech, setTech] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -705,13 +713,20 @@ export default function TechnologyWorkspacePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold">{tech.name}</h1>
-                <button
-                  onClick={handleStartEditTech}
-                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Edit Technology Workspace"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
+                {tech.isGlobal && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/25 text-blue-400">
+                    <Shield className="h-3 w-3" /> Official
+                  </span>
+                )}
+                {(!tech.isGlobal || isAdmin) && (
+                  <button
+                    onClick={handleStartEditTech}
+                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Edit Technology Workspace"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               {tech.description && (
                 <p className="text-sm text-muted-foreground/80 mt-1.5 max-w-2xl leading-relaxed">
@@ -1036,8 +1051,8 @@ export default function TechnologyWorkspacePage() {
           <h3 className="font-semibold text-base mb-1">No questions found</h3>
           <p className="text-sm text-muted-foreground">
             {questions.length === 0
-              ? "This workspace has no questions yet. Click Add Question or Generate with AI to get started."
-              : "No questions match your search filters."}
+              ? "This workspace has no questions yet. Click Add Content to get started."
+              : "No questions match your search or filters."}
           </p>
         </div>
       ) : layoutView === "grid" ? (
@@ -1694,6 +1709,7 @@ export default function TechnologyWorkspacePage() {
             question={detailViewQuestion}
             technologyName={tech?.name || ""}
             allQuestions={questions}
+            isAdmin={isAdmin}
             onClose={() => setDetailViewQuestion(null)}
             onSelectQuestion={setDetailViewQuestion}
             onUpdateQuestion={(updatedQ) => {

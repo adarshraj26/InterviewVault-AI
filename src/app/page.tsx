@@ -229,7 +229,7 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/70 border-b border-border/60 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            <Logo size="md" />
+            <Logo size="md" className="scale-90 sm:scale-100 origin-left shrink-0" />
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer py-1.5">
                 Features
@@ -254,17 +254,17 @@ export default function LandingPage() {
                 <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Free</span>
               </a>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <ThemeToggle />
               <Link href="/login" className="hidden sm:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2">
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className="gradient-bg text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/25 flex items-center gap-1.5 group"
+                className="gradient-bg text-white text-xs sm:text-sm font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/25 flex items-center gap-1.5 group whitespace-nowrap"
               >
                 Get Started
-                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="h-3.5 w-3.5 hidden sm:block group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
           </div>

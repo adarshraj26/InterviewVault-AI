@@ -23,7 +23,9 @@ import {
   ShieldAlert,
   Loader2,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { GlassCard, AnimatedCounter } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import {
@@ -34,6 +36,7 @@ import {
   moderateQuestion,
   selfPromoteToAdmin,
 } from "@/actions/admin";
+import { getGlobalTechnologies, createGlobalTechnology, deleteGlobalTechnology } from "@/actions/ownership";
 import { toast } from "sonner";
 
 const fadeInUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -43,8 +46,15 @@ export default function AdminPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "moderation" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "library" | "moderation" | "settings">("users");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Global Library state
+  const [globalTechs, setGlobalTechs] = useState<any[]>([]);
+  const [isTechModalOpen, setIsTechModalOpen] = useState(false);
+  const [newTechName, setNewTechName] = useState("");
+  const [newTechDesc, setNewTechDesc] = useState("");
+  const [submittingTech, setSubmittingTech] = useState(false);
 
   // System Settings state mock for the Settings tab
   const [aiEnabled, setAiEnabled] = useState(true);
@@ -53,12 +63,15 @@ export default function AdminPage() {
 
   const loadData = async () => {
     try {
-      const res = await getAdminData();
+      const [res, techRes] = await Promise.all([getAdminData(), getGlobalTechnologies()]);
       if (res.error) {
         toast.error(res.error);
         return;
       }
       setData(res);
+      if (techRes.success) {
+        setGlobalTechs(techRes.technologies || []);
+      }
     } catch (err) {
       console.error(err);
       toast.error("Failed to load admin telemetry.");
@@ -157,6 +170,48 @@ export default function AdminPage() {
       }
     } catch (err) {
       toast.error("Moderation failed.", { id: "moderate-action" });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleCreateGlobalTech = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTechName.trim()) return;
+    
+    setSubmittingTech(true);
+    try {
+      const res = await createGlobalTechnology(newTechName, newTechDesc);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Global Technology created!");
+        setIsTechModalOpen(false);
+        setNewTechName("");
+        setNewTechDesc("");
+        loadData();
+      }
+    } catch (err) {
+      toast.error("Failed to create global technology.");
+    } finally {
+      setSubmittingTech(false);
+    }
+  };
+
+  const handleDeleteGlobalTech = async (id: string) => {
+    if (!confirm("Are you sure? This deletes the global technology and all its questions.")) return;
+    
+    setActionLoadingId(id + "-del-tech");
+    try {
+      const res = await deleteGlobalTechnology(id);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Global Technology deleted!");
+        loadData();
+      }
+    } catch (err) {
+      toast.error("Failed to delete technology.");
     } finally {
       setActionLoadingId(null);
     }
@@ -274,6 +329,7 @@ export default function AdminPage() {
         <div className="flex gap-2">
           {[
             { id: "users", label: "User Accounts", icon: Users },
+            { id: "library", label: "Global Library", icon: BookOpen },
             { id: "moderation", label: "Moderation Queue", icon: Flag },
             { id: "settings", label: "System Config", icon: Settings },
           ].map((tab) => (
@@ -437,6 +493,85 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {activeTab === "library" && (
+          <motion.div
+            key="library-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            <GlassCard>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 border-b border-border/30 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-500/15 text-blue-500 border border-blue-500/20">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground">Global Library Management</h2>
+                    <p className="text-xs text-muted-foreground">Manage official technologies available to all users.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsTechModalOpen(true)}
+                  className="gradient-bg text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-primary/20"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Global Tech
+                </button>
+              </div>
+
+              {globalTechs.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground italic">
+                  No global technologies found.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {globalTechs.map((tech) => (
+                    <motion.div
+                      key={tech.id}
+                      className="glass rounded-2xl p-5 border border-border/80 flex flex-col justify-between space-y-4 relative overflow-hidden group"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-extrabold text-foreground">{tech.name}</h4>
+                          <span className="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold uppercase">
+                            Official
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {tech.description || "No description provided."}
+                        </p>
+                        <div className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                          <Activity className="h-3 w-3" />
+                          {tech.questions?.length || 0} Questions Total
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 pt-3 border-t border-border/20 mt-2">
+                        <Link
+                          href={`/technologies/${tech.slug}`}
+                          className="flex-1 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer text-center flex justify-center items-center gap-1"
+                        >
+                          <BookOpen className="h-3 w-3" /> Manage Content
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteGlobalTech(tech.id)}
+                          disabled={actionLoadingId === tech.id + "-del-tech"}
+                          className="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[11px] font-bold hover:bg-red-500 hover:text-white transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {actionLoadingId === tech.id + "-del-tech" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash className="h-3 w-3" />}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </GlassCard>
           </motion.div>
         )}
@@ -648,6 +783,70 @@ export default function AdminPage() {
               </div>
             </GlassCard>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Tech Modal */}
+      <AnimatePresence>
+        {isTechModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTechModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl glass-strong border border-border p-6 shadow-2xl relative z-10"
+            >
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary" />
+                Add Global Technology
+              </h2>
+              <form onSubmit={handleCreateGlobalTech} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Technology Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newTechName}
+                    onChange={(e) => setNewTechName(e.target.value)}
+                    placeholder="e.g., React, System Design"
+                    className="w-full rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Description</label>
+                  <textarea
+                    value={newTechDesc}
+                    onChange={(e) => setNewTechDesc(e.target.value)}
+                    className="w-full h-24 rounded-xl border border-border bg-black/20 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsTechModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTech}
+                    className="gradient-bg text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {submittingTech && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Create Global Tech
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>

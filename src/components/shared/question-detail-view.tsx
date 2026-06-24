@@ -24,6 +24,8 @@ import { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-rend
 import { ShareBar, ShareModal } from "./share-modal";
 import { Footer } from "@/components/shared";
 import { updateQuestion } from "@/actions/questions";
+import { saveToMyVault } from "@/actions/ownership";
+import { toast } from "sonner";
 
 /* ═══════════════════════════════════════════════════════════
    QuestionDetailView — FrontendPrep.io-style article reader
@@ -40,10 +42,12 @@ interface QuestionDetailViewProps {
     interviewFrequency: string;
     tags?: string[];
     isPublic?: boolean;
+    isGlobal?: boolean;
     revisionStatus?: string;
   };
   technologyName: string;
   allQuestions?: any[];
+  isAdmin?: boolean;
   onClose: () => void;
   onSelectQuestion?: (q: any) => void;
   onUpdateQuestion?: (q: any) => void;
@@ -64,6 +68,7 @@ export function QuestionDetailView({
   question,
   technologyName,
   allQuestions = [],
+  isAdmin = false,
   onClose,
   onSelectQuestion,
   onUpdateQuestion,
@@ -71,6 +76,7 @@ export function QuestionDetailView({
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
   const [isDone, setIsDone] = useState(question.revisionStatus === "MASTERED");
   const [isSaved, setIsSaved] = useState(false);
+  const [savingToVault, setSavingToVault] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [activeHeadingId, setActiveHeadingId] = useState<string>("");
   const [showMobileToc, setShowMobileToc] = useState(false);
@@ -397,31 +403,38 @@ export function QuestionDetailView({
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={handleToggleDone}
-                      disabled={isPending}
-                      className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer",
-                        isDone
-                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
-                          : "bg-black/20 border-border/50 text-foreground hover:bg-muted"
-                      )}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {isDone ? "Done" : "Mark as Done"}
-                    </button>
-                    <button
-                      onClick={() => setIsSaved(!isSaved)}
-                      className={cn(
-                        "p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center",
-                        isSaved
-                          ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
-                          : "bg-black/20 border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted"
-                      )}
-                      title={isSaved ? "Saved" : "Save for later"}
-                    >
-                      <Bookmark className={cn("h-4 w-4", isSaved && "fill-current")} />
-                    </button>
+                    {question.isGlobal && !isAdmin ? (
+                      /* Global Questions: Can only be saved to vault */
+                      <button
+                        onClick={async () => {
+                          setSavingToVault(true);
+                          const res = await saveToMyVault(question.id);
+                          setSavingToVault(false);
+                          if (res.error) toast.error(res.error);
+                          else toast.success("Saved to your vault!");
+                        }}
+                        disabled={savingToVault}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
+                      >
+                        <Bookmark className="h-4 w-4" />
+                        {savingToVault ? "Saving..." : "Save to Vault"}
+                      </button>
+                    ) : (
+                      /* Personal Questions: Track progress */
+                      <button
+                        onClick={handleToggleDone}
+                        disabled={isPending}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                          isDone
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                            : "bg-black/20 border-border/50 text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        {isDone ? "Done" : "Mark as Done"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </header>
