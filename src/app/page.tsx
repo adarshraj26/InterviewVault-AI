@@ -240,6 +240,9 @@ export default function LandingPage() {
               <Link href="/about" className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer py-1.5">
                 About
               </Link>
+              <Link href="/dashboard" className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer py-1.5">
+                Dashboard
+              </Link>
               <a href="#how-it-works" className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer py-1.5">
                 How It Works
               </a>

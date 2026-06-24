@@ -103,13 +103,7 @@ export default function DashboardClient({
           </p>
         </div>
         <div className="flex gap-3">
-          <Link
-            href="/technologies"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl glass hover:bg-muted transition-colors text-sm font-medium cursor-pointer"
-          >
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI Generate
-          </Link>
+
           <Link
             href="/settings"
             className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-medium cursor-pointer"

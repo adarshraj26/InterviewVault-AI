@@ -69,6 +69,9 @@ export default function ContactClient() {
             <Link href="/" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
               Home
             </Link>
+            <Link href="/dashboard" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+              Dashboard
+            </Link>
             <Link href="/about" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
               About
             </Link>

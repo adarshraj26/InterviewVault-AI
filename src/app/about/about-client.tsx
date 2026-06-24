@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 // ── Animation Variants ─────────────────────────────────────
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
 const staggerContainer = {
@@ -211,6 +211,9 @@ export default function AboutPage({ counts }: { counts: { react: number; javascr
           <div className="flex items-center gap-6">
             <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Home
+            </Link>
+            <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Dashboard
             </Link>
             <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Contact
@@ -480,6 +483,102 @@ export default function AboutPage({ counts }: { counts: { react: number; javascr
           </div>
         </div>
       </main>
+
+      {/* ── Meet the Creator (Interactive Portfolio) ────────────────────── */}
+      <section className="py-24 border-t border-border/40 relative overflow-hidden">
+        {/* Glow Effects */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-black text-foreground tracking-tight mb-4">
+              About Me
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              The developer behind InterviewVault AI.
+            </p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col lg:flex-row gap-12 lg:gap-8 items-center bg-card/40 border border-border/50 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-12 shadow-2xl"
+          >
+            {/* Left: Bio & Info */}
+            <div className="flex-1 space-y-6">
+              <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3.5 py-1.5 text-xs font-semibold text-primary mb-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                Meet the Creator
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+                Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">Adarsh Raj</span>
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
+                I built InterviewVault AI because I believe every developer deserves access to top-tier, FAANG-level interview preparation without the exorbitant price tag.
+              </p>
+              <p className="text-muted-foreground leading-relaxed max-w-xl">
+                When I'm not building AI tools, I specialize in crafting performant, highly interactive web applications using React, Next.js, and modern web technologies.
+              </p>
+              
+              <div className="pt-4 flex flex-wrap gap-4">
+                <a
+                  href="https://adarsh-raj-portfolio-phi.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-xl hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all shadow-lg group"
+                >
+                  Visit Full Portfolio
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </a>
+                <a
+                  href="https://github.com/adarshraj26"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground font-bold px-6 py-3 rounded-xl hover:bg-secondary/80 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Code2 className="h-4 w-4" /> GitHub
+                </a>
+              </div>
+            </div>
+
+            {/* Right: Interactive iframe Window */}
+            <div className="w-full lg:w-[600px] h-[400px] lg:h-[500px] shrink-0 relative group perspective-[1000px]">
+              <div className="absolute inset-0 bg-gradient-to-tr from-primary/30 to-purple-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
+              
+              {/* Iframe Container with 3D effect */}
+              <div className="w-full h-full relative rounded-3xl overflow-hidden border border-white/20 bg-background/50 shadow-2xl transition-all duration-700 ease-out transform-gpu [transform:rotateY(-10deg)_rotateX(5deg)_scale(0.95)] group-hover:[transform:rotateY(0deg)_rotateX(0deg)_scale(1)]">
+                {/* Browser Top Bar */}
+                <div className="absolute top-0 left-0 right-0 h-8 bg-black/40 backdrop-blur-md flex items-center px-4 gap-2 z-20">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <div className="ml-4 text-[10px] font-mono text-white/50 truncate flex items-center gap-1">
+                    <span className="text-emerald-400">🔒</span> https://adarsh-raj-portfolio-phi.vercel.app/
+                  </div>
+                </div>
+                
+                {/* The iframe */}
+                <iframe
+                  src="https://adarsh-raj-portfolio-phi.vercel.app/"
+                  className="w-full h-full pt-8 scale-[1.02] bg-background"
+                  loading="lazy"
+                  title="Adarsh Raj Portfolio"
+                />
+                
+                {/* Interactive overlay that fades out on hover so users can scroll the iframe! */}
+                <div className="absolute inset-0 z-10 bg-black/10 group-hover:opacity-0 transition-opacity duration-500 pointer-events-none flex items-center justify-center">
+                  <div className="bg-background/90 backdrop-blur-md text-foreground px-5 py-2.5 rounded-full text-sm font-semibold border border-border/50 shadow-2xl transform-gpu transition-all duration-500 group-hover:-translate-y-4 group-hover:scale-95 opacity-100 group-hover:opacity-0 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Hover to interact
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
       {/* ── Final CTA ─────────────────────────────────────── */}
       <section className="py-24 border-t border-border/40">
