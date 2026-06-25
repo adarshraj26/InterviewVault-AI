@@ -102,8 +102,8 @@ export default function AnalyticsPage() {
           <h2 className="text-lg font-semibold mb-6">Technology Readiness</h2>
           <div className="space-y-6">
             {techReadiness.map((tech) => (
-              <div key={tech.tech} className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="flex items-center gap-3 sm:w-40 shrink-0">
+              <div key={tech.tech} className="flex flex-col lg:flex-row lg:items-center gap-4 border-b border-border/10 pb-4 lg:border-none lg:pb-0">
+                <div className="flex items-center gap-3 lg:w-40 shrink-0">
                   <span className="text-2xl">{tech.icon}</span>
                   <div>
                     <p className="font-medium text-sm">{tech.tech}</p>
@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
                     />
                   </div>
                 </div>
-                <div className="flex gap-4 text-xs sm:w-72 shrink-0">
+                <div className="flex flex-col sm:flex-row lg:flex-col gap-2 text-xs lg:w-72 shrink-0">
                   <div>
                     <span className="text-green-500 font-medium">Strong:</span>{" "}
                     <span className="text-muted-foreground">{tech.strong.join(", ")}</span>

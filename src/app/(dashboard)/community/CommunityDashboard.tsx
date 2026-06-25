@@ -131,14 +131,14 @@ export default function CommunityDashboard({
           <h1 className="text-3xl font-bold">Community Library</h1>
           <p className="text-muted-foreground mt-1">Discover and save questions shared by the community</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 glass rounded-xl px-4 py-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center justify-center gap-2 glass rounded-xl px-4 py-2 w-full sm:w-auto">
             <Users className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">{questions.length} community questions</span>
           </div>
           <Link
             href="/technologies"
-            className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold"
+            className="flex items-center justify-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold w-full sm:w-auto"
           >
             <Globe className="h-4 w-4" />
             Share a Question

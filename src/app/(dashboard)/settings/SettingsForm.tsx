@@ -509,7 +509,7 @@ export default function SettingsForm({ user, activeResume }: SettingsFormProps) 
 
           {resumeRecord && (
             <div className="mt-4 glass rounded-xl p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2 rounded-lg bg-primary/10 shrink-0">
                     <FileText className="h-4 w-4 text-primary" />

@@ -130,14 +130,14 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-xs uppercase tracking-wider text-primary font-bold px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
             Question {currentIdx + 1} of {initialQuestions.length}
           </span>
           <h1 className="text-2xl font-bold mt-2">{interview.technology} Mock Interview</h1>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
           <div className="text-right">
             <span className="text-sm text-muted-foreground block">Time remaining</span>
             <span className="font-mono text-lg font-bold text-red-400">{formatTime(timeRemaining)}</span>
@@ -170,10 +170,10 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
           />
         </div>
 
-        <div className="flex justify-between items-center mt-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between mt-6">
           <button
             onClick={handleRecordingToggle}
-            className={`p-4 rounded-xl border transition-all flex items-center gap-2 font-medium ${
+            className={`w-full sm:w-auto justify-center p-4 rounded-xl border transition-all flex items-center gap-2 font-medium ${
               isRecording 
                 ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30" 
                 : "border-border glass hover:bg-muted text-muted-foreground"
@@ -187,7 +187,7 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
           <button
             onClick={handleNext}
             disabled={submitting || loading}
-            className="gradient-bg text-white font-semibold px-6 py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center gap-2"
+            className="w-full sm:w-auto justify-center gradient-bg text-white font-semibold px-6 py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center gap-2"
           >
             {submitting || loading ? (
               <>

@@ -763,7 +763,7 @@ export default function TechnologyWorkspacePage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {questions.length > 0 && (
               dueCount > 0 ? (
                 <button
