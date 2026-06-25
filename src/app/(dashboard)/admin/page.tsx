@@ -199,7 +199,7 @@ export default function AdminPage() {
           toast.error(toggleRes.error);
         } else {
           toast.success(
-            `Global Technology created and provisioned to ${toggleRes.provisioned || 0} users!`
+            "Global Technology created successfully!"
           );
         }
       }

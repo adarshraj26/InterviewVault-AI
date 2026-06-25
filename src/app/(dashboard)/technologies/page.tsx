@@ -32,6 +32,7 @@ interface TechnologyWithQuestions {
   isGlobal: boolean;
   isGlobalTemplate: boolean;
   sourceTemplateId: string | null;
+  userId: string;
   questions: {
     revisionStatus: string;
   }[];
@@ -147,7 +148,7 @@ export default function TechnologiesPage() {
     const toastId = `toggle-template-${tech.id}`;
     toast.loading(
       newState
-        ? `Making "${tech.name}" a global template and provisioning to all users...`
+        ? `Making "${tech.name}" a global template...`
         : `Removing "${tech.name}" from global templates...`,
       { id: toastId }
     );
@@ -159,9 +160,9 @@ export default function TechnologiesPage() {
         return;
       }
 
-      if (newState && res.provisioned !== undefined) {
+      if (newState) {
         toast.success(
-          `"${tech.name}" is now a global template! Provisioned to ${res.provisioned} user(s). ${res.skipped || 0} already had it.`,
+          `"${tech.name}" is now a global template!`,
           { id: toastId, duration: 5000 }
         );
       } else {

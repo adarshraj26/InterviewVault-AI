@@ -25,12 +25,14 @@ export async function getTechnologies() {
     throw new Error("Unauthorized");
   }
 
+  const userId = session.user.id;
+
   // Fetch ALL technologies belonging to this user (Personal)
   // AND all Official Global Templates (isGlobalTemplate = true)
   const allTechs = await db.technology.findMany({
     where: {
       OR: [
-        { userId: session.user.id },
+        { userId },
         { isGlobalTemplate: true }
       ]
     },
@@ -44,14 +46,14 @@ export async function getTechnologies() {
 
   // Filter out Official technologies if the user has already created a personal copy of it
   // (A personal copy will have sourceTemplateId set to the Official technology's ID)
-  const personalTechs = allTechs.filter(t => t.userId === session.user.id);
+  const personalTechs = allTechs.filter(t => t.userId === userId);
   const clonedTemplateIds = new Set(
     personalTechs.filter(t => t.sourceTemplateId).map(t => t.sourceTemplateId)
   );
 
   const result = allTechs.filter(t => {
     // Keep all personal techs
-    if (t.userId === session.user.id) return true;
+    if (t.userId === userId) return true;
     
     // For Official techs, only keep them if the user hasn't cloned them
     return !clonedTemplateIds.has(t.id);
