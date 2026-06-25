@@ -25,31 +25,39 @@ export async function getTechnologies() {
     throw new Error("Unauthorized");
   }
 
-  // Fetch the user's personal technologies
-  const personalTechs = await db.technology.findMany({
-    where: { userId: session.user.id, isGlobal: false },
+  // Fetch ALL technologies belonging to this user (Personal)
+  // AND all Official Global Templates (isGlobalTemplate = true)
+  const allTechs = await db.technology.findMany({
+    where: {
+      OR: [
+        { userId: session.user.id },
+        { isGlobalTemplate: true }
+      ]
+    },
     orderBy: { order: "asc" },
     include: {
       questions: {
-        select: { revisionStatus: true },
+        select: { revisionStatus: true, userId: true },
       },
     },
   });
 
-  // Fetch all global technologies (admin-created, visible to everyone)
-  const globalTechs = await db.technology.findMany({
-    where: { isGlobal: true },
-    orderBy: { order: "asc" },
-    include: {
-      questions: {
-        select: { revisionStatus: true },
-      },
-    },
+  // Filter out Official technologies if the user has already created a personal copy of it
+  // (A personal copy will have sourceTemplateId set to the Official technology's ID)
+  const personalTechs = allTechs.filter(t => t.userId === session.user.id);
+  const clonedTemplateIds = new Set(
+    personalTechs.filter(t => t.sourceTemplateId).map(t => t.sourceTemplateId)
+  );
+
+  const result = allTechs.filter(t => {
+    // Keep all personal techs
+    if (t.userId === session.user.id) return true;
+    
+    // For Official techs, only keep them if the user hasn't cloned them
+    return !clonedTemplateIds.has(t.id);
   });
 
-  // Return both, global first, then personal
-  // Mark them with the isGlobal flag so the UI can badge them correctly
-  return [...globalTechs, ...personalTechs];
+  return result;
 }
 
 export async function getTechnologyBySlug(slug: string) {
@@ -58,71 +66,47 @@ export async function getTechnologyBySlug(slug: string) {
     throw new Error("Unauthorized");
   }
 
-  // Try personal technology first
-  let tech = await db.technology.findUnique({
+  // 1. Try to find the user's personal copy first
+  let tech = await db.technology.findFirst({
     where: {
-      userId_slug: {
-        userId: session.user.id,
-        slug,
-      },
+      userId: session.user.id,
+      slug,
     },
     include: {
       questions: {
+        where: { userId: session.user.id },
         orderBy: { createdAt: "asc" },
         include: {
           revisionRecords: {
+            where: { userId: session.user.id },
             orderBy: { revisedAt: "desc" },
             take: 1,
           },
         },
       },
       notes: {
+        where: { userId: session.user.id },
         orderBy: { createdAt: "desc" },
       },
     },
   });
 
-  // Fall back to global technology if no personal one found
+  // 2. If no personal copy, look for an Official Global Template
   if (!tech) {
-    const globalTech = await db.technology.findFirst({
-      where: { slug, isGlobal: true },
-      include: {
-        notes: { orderBy: { createdAt: "desc" } },
+    tech = await db.technology.findFirst({
+      where: {
+        isGlobalTemplate: true,
+        slug,
       },
-    });
-
-    if (globalTech) {
-      // Merge global questions with user's personal questions in this global tech
-      const globalQuestions = await db.question.findMany({
-        where: { technologyId: globalTech.id, isGlobal: true },
-        orderBy: { createdAt: "asc" },
-        include: {
-          revisionRecords: {
-            where: { userId: session.user.id },
-            orderBy: { revisedAt: "desc" },
-            take: 1,
-          },
+      include: {
+        questions: {
+          orderBy: { createdAt: "asc" },
+          // We must NOT fetch revision records for global questions since they belong to admin
+          // Users cannot have revision records on questions they don't own
         },
-      });
-
-      // Find any personal questions the user added to this global tech
-      const personalQuestionsInGlobal = await db.question.findMany({
-        where: { technologyId: globalTech.id, userId: session.user.id, isGlobal: false },
-        orderBy: { createdAt: "asc" },
-        include: {
-          revisionRecords: {
-            where: { userId: session.user.id },
-            orderBy: { revisedAt: "desc" },
-            take: 1,
-          },
-        },
-      });
-
-      tech = {
-        ...globalTech,
-        questions: [...globalQuestions, ...personalQuestionsInGlobal],
-      } as any;
-    }
+        // We do not fetch notes for global templates since notes are personal
+      },
+    }) as any;
   }
 
   return tech;
@@ -156,6 +140,7 @@ export async function createTechnology(name: string, description?: string) {
         description,
         userId: session.user.id,
         isGlobal: false,
+        isGlobalTemplate: false,
       },
     });
 
@@ -177,19 +162,19 @@ export async function deleteTechnology(id: string) {
   try {
     const tech = await db.technology.findUnique({ where: { id } });
 
-    // Block non-admins from deleting global technologies
-    if (tech?.isGlobal) {
-      const role = await getCurrentUserRole(session.user.id);
-      if (role !== UserRole.ADMIN) {
-        return { error: "Permission denied: Cannot delete Official technologies" };
-      }
+    if (!tech) {
+      return { error: "Technology not found" };
+    }
+
+    // Only allow deletion if:
+    // 1. It's the user's own tech, OR
+    // 2. The user is admin and it's their template
+    if (tech.userId !== session.user.id) {
+      return { error: "Permission denied: You can only delete your own technologies" };
     }
 
     await db.technology.delete({
-      where: {
-        id,
-        userId: session.user.id,
-      },
+      where: { id },
     });
 
     revalidatePath("/technologies");
@@ -210,12 +195,12 @@ export async function updateTechnology(id: string, name: string, description?: s
   try {
     const tech = await db.technology.findUnique({ where: { id } });
 
-    // Block non-admins from editing global technologies
-    if (tech?.isGlobal) {
-      const role = await getCurrentUserRole(session.user.id);
-      if (role !== UserRole.ADMIN) {
-        return { error: "Permission denied: Cannot edit Official technologies" };
-      }
+    if (!tech) {
+      return { error: "Technology not found" };
+    }
+
+    if (tech.userId !== session.user.id) {
+      return { error: "Permission denied: You can only edit your own technologies" };
     }
 
     const slug = slugify(name);
@@ -233,10 +218,7 @@ export async function updateTechnology(id: string, name: string, description?: s
     }
 
     const updated = await db.technology.update({
-      where: {
-        id,
-        userId: session.user.id,
-      },
+      where: { id },
       data: {
         name,
         slug,
@@ -253,5 +235,3 @@ export async function updateTechnology(id: string, name: string, description?: s
     return { error: "Failed to update technology" };
   }
 }
-
-

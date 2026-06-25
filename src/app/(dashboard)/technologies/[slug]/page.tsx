@@ -167,8 +167,9 @@ function highlightCode(code: string, language: string): string {
 export default function TechnologyWorkspacePage() {
   const { slug } = useParams() as { slug: string };
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const isAdmin = (session?.user as any)?.role === "ADMIN" || (session?.user as any)?.role === "SUPER_ADMIN";
   const [savingToVault, setSavingToVault] = useState<string | null>(null);
+  const [isCloning, setIsCloning] = useState(false);
   const [tech, setTech] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -399,6 +400,30 @@ export default function TechnologyWorkspacePage() {
   useEffect(() => {
     loadData();
   }, [slug]);
+
+  const isReadOnly = tech?.isGlobalTemplate && tech?.userId !== (session?.user as any)?.id;
+
+  const handleCreatePersonalCopy = async () => {
+    if (!tech) return;
+    setIsCloning(true);
+    toast.loading("Creating your personal copy...", { id: "clone" });
+    try {
+      const { createPersonalCopy } = await import("@/actions/template-provisioning");
+      const res = await createPersonalCopy(tech.id);
+      
+      if (res.error) {
+        toast.error(res.error, { id: "clone" });
+        return;
+      }
+      
+      toast.success("Personal copy created! You can now edit and add questions.", { id: "clone" });
+      loadData(); // Will now load the personal copy
+    } catch (err) {
+      toast.error("Failed to create copy", { id: "clone" });
+    } finally {
+      setIsCloning(false);
+    }
+  };
 
   useEffect(() => {
     if (questions.length > 0) {
@@ -713,12 +738,12 @@ export default function TechnologyWorkspacePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold">{tech.name}</h1>
-                {tech.isGlobal && (
+                {tech.sourceTemplateId && !tech.isGlobalTemplate && (
                   <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/25 text-blue-400">
-                    <Shield className="h-3 w-3" /> Official
+                    <User className="h-3 w-3" /> Personal Copy
                   </span>
                 )}
-                {(!tech.isGlobal || isAdmin) && (
+                {!isReadOnly && (
                   <button
                     onClick={handleStartEditTech}
                     className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -764,81 +789,94 @@ export default function TechnologyWorkspacePage() {
               )
             )}
             
-            <button
-              onClick={() => handleStartBulkImport("markdown")}
-              className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2 rounded-lg transition-all text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
-              title="Import questions from Markdown, Text, PDF, or DOCX"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Import Questions</span>
-            </button>
-
-            <div className="relative">
+            {isReadOnly ? (
               <button
-                onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
-                className="flex items-center gap-2 gradient-bg text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
+                onClick={handleCreatePersonalCopy}
+                disabled={isCloning}
+                className="flex items-center gap-2 gradient-bg text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer h-9 whitespace-nowrap disabled:opacity-50"
               >
-                <Plus className="h-4 w-4" />
-                Add Content
+                {isCloning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                Create Personal Copy
               </button>
-              {isAddDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsAddDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-[#0b0f19] p-1.5 shadow-2xl z-20 space-y-1">
-                    <button
-                      onClick={() => {
-                        setIsAddDropdownOpen(false);
-                        handleStartAddQuestion();
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
-                    >
-                      <Plus className="h-3.5 w-3.5 text-primary" />
-                      Add Question
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAddDropdownOpen(false);
-                        handleStartBulkImport("markdown");
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
-                    >
-                      <FileText className="h-3.5 w-3.5 text-primary" />
-                      Import Markdown
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAddDropdownOpen(false);
-                        handleStartBulkImport("paste");
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
-                    >
-                      <Edit3 className="h-3.5 w-3.5 text-primary" />
-                      Bulk Paste
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAddDropdownOpen(false);
-                        handleStartBulkImport("zip");
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
-                    >
-                      <FileArchive className="h-3.5 w-3.5 text-primary" />
-                      Import ZIP
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAddDropdownOpen(false);
-                        handleStartBulkImport("github");
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
-                    >
-                      <GitBranch className="h-3.5 w-3.5 text-primary" />
-                      Import GitHub Repository
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleStartBulkImport("markdown")}
+                  className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2 rounded-lg transition-all text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
+                  title="Import questions from Markdown, Text, PDF, or DOCX"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span>Import Questions</span>
+                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+                    className="flex items-center gap-2 gradient-bg text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-semibold cursor-pointer h-9 whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Content
+                  </button>
+                  {isAddDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsAddDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-[#0b0f19] p-1.5 shadow-2xl z-20 space-y-1">
+                        <button
+                          onClick={() => {
+                            setIsAddDropdownOpen(false);
+                            handleStartAddQuestion();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-primary" />
+                          Add Question
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsAddDropdownOpen(false);
+                            handleStartBulkImport("markdown");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                        >
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                          Import Markdown
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsAddDropdownOpen(false);
+                            handleStartBulkImport("paste");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 text-primary" />
+                          Bulk Paste
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsAddDropdownOpen(false);
+                            handleStartBulkImport("zip");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                        >
+                          <FileArchive className="h-3.5 w-3.5 text-primary" />
+                          Import ZIP
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsAddDropdownOpen(false);
+                            handleStartBulkImport("github");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer text-foreground/90"
+                        >
+                          <GitBranch className="h-3.5 w-3.5 text-primary" />
+                          Import GitHub Repository
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </motion.div>
@@ -1139,22 +1177,24 @@ export default function TechnologyWorkspacePage() {
                       <span className="text-[10px] text-primary/70 font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                         Read full article <ArrowRight className="h-3 w-3" />
                       </span>
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleStartEditQuestion(q)}
-                          className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <ConfirmDeleteButton
-                          onDelete={() => handleDeleteQuestion(q.id, q.title)}
-                          className="w-6 h-6 bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
-                          tooltip="Delete"
-                          icon={<Trash className="h-3 w-3" />}
-                          confirmIcon={<AlertCircle className="h-3 w-3 animate-pulse" />}
-                        />
-                      </div>
+                      {!isReadOnly && (
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleStartEditQuestion(q)}
+                            className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <ConfirmDeleteButton
+                            onDelete={() => handleDeleteQuestion(q.id, q.title)}
+                            className="w-6 h-6 bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
+                            tooltip="Delete"
+                            icon={<Trash className="h-3 w-3" />}
+                            confirmIcon={<AlertCircle className="h-3 w-3 animate-pulse" />}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </GlassCard>
@@ -1227,36 +1267,42 @@ export default function TechnologyWorkspacePage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {/* Share to Community toggle */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTogglePublic(q);
-                      }}
-                      className={cn(
-                        "p-1.5 rounded-lg border transition-all cursor-pointer z-10",
-                        q.isPublic
-                           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
-                           : "border-border bg-black/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
-                      )}
-                      title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
-                    >
-                      {q.isPublic ? <Globe className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEditQuestion(q);
-                      }}
-                      className="p-1.5 rounded-lg border border-border bg-black/10 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer z-10"
-                      title="Edit Question"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <ConfirmDeleteButton
-                      onDelete={() => handleDeleteQuestion(q.id, q.title)}
-                      className="w-7 h-7 border border-border bg-black/10 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer z-10"
-                      tooltip="Delete Question"
-                    />
+                    {!isReadOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePublic(q);
+                        }}
+                        className={cn(
+                          "p-1.5 rounded-lg border transition-all cursor-pointer z-10",
+                          q.isPublic
+                            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                            : "border-border bg-black/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
+                        )}
+                        title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
+                      >
+                        {q.isPublic ? <Globe className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                    {!isReadOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditQuestion(q);
+                        }}
+                        className="p-1.5 rounded-lg border border-border bg-black/10 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer z-10"
+                        title="Edit Question"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {!isReadOnly && (
+                      <ConfirmDeleteButton
+                        onDelete={() => handleDeleteQuestion(q.id, q.title)}
+                        className="w-7 h-7 border border-border bg-black/10 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer z-10"
+                        tooltip="Delete Question"
+                      />
+                    )}
                     <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                   </div>
                 </div>

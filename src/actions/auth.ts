@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { registerSchema, loginSchema, type RegisterInput, type LoginInput } from "@/lib/validators/auth";
 import { AuthError } from "next-auth";
+import { SUPER_ADMIN_EMAIL } from "@/constants";
+import { UserRole } from "@prisma/client";
 
 export async function registerUser(data: RegisterInput) {
   try {
@@ -30,6 +32,7 @@ export async function registerUser(data: RegisterInput) {
         name,
         email,
         hashedPassword,
+        role: email === SUPER_ADMIN_EMAIL ? UserRole.SUPER_ADMIN : UserRole.USER,
       },
     });
 

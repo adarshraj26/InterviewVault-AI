@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   Shield,
   X,
   Info,
+  LogOut,
 } from "lucide-react";
 import { Logo } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -47,10 +49,25 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role;
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+
+  const visibleBottomItems = bottomNavItems.filter((item) => {
+    if (item.label === "Admin") {
+      return isAdmin;
+    }
+    return true;
+  });
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    window.location.href = "/login";
   };
 
   const sidebarContent = (
@@ -130,7 +147,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
       {/* Bottom Navigation */}
       <div className="border-t border-border/50 py-4 px-3 space-y-1">
-        {bottomNavItems.map((item) => {
+        {visibleBottomItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
@@ -160,6 +177,29 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             </Link>
           );
         })}
+        
+        {/* Sign Out Button */}
+        <button
+          onClick={handleSignOut}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group mt-1",
+            "text-red-500 hover:bg-red-500/10"
+          )}
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                Sign Out
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
       </div>
 
 

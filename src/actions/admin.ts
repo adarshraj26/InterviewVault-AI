@@ -4,12 +4,27 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { UserRole, SubscriptionPlan } from "@prisma/client";
+import { SUPER_ADMIN_EMAIL } from "@/constants";
 
-// Helper to ensure current user is ADMIN
-async function verifyAdmin() {
+// Helper strictly for Super Admin
+export async function verifySuperAdmin() {
+  const session = await auth();
+  if (!session?.user?.id || session.user.email !== SUPER_ADMIN_EMAIL) {
+    return { authorized: false, error: "Unauthorized: Super Admin access required" };
+  }
+  return { authorized: true, userId: session.user.id };
+}
+
+// Helper to ensure current user is ADMIN or SUPER_ADMIN
+export async function verifyAdmin() {
   const session = await auth();
   if (!session?.user?.id) {
     return { authorized: false, error: "Unauthorized" };
+  }
+
+  // Super Admin bypass
+  if (session.user.email === SUPER_ADMIN_EMAIL) {
+    return { authorized: true, isSuperAdmin: true, userId: session.user.id };
   }
 
   const user = await db.user.findUnique({
@@ -17,11 +32,15 @@ async function verifyAdmin() {
     select: { role: true },
   });
 
-  if (user?.role !== UserRole.ADMIN) {
+  if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.SUPER_ADMIN) {
     return { authorized: false, isSandbox: true, userId: session.user.id };
   }
 
-  return { authorized: true, userId: session.user.id };
+  return { 
+    authorized: true, 
+    isSuperAdmin: user?.role === UserRole.SUPER_ADMIN,
+    userId: session.user.id 
+  };
 }
 
 export async function getAdminData() {
@@ -130,6 +149,7 @@ export async function getAdminData() {
       users: serializedUsers,
       communityQuestions: serializedQuestions,
       isSandbox: !!adminCheck.isSandbox,
+      isSuperAdmin: !!adminCheck.isSuperAdmin,
     };
   } catch (error) {
     console.error("Admin data fetch error:", error);
@@ -139,21 +159,22 @@ export async function getAdminData() {
 
 export async function toggleUserRole(targetUserId: string) {
   try {
-    const adminCheck = await verifyAdmin();
+    const adminCheck = await verifySuperAdmin();
     if (!adminCheck.authorized) {
-      if (adminCheck.isSandbox) {
-        return { error: "Permission Denied: Sandbox mode restricts modification of other user roles." };
-      }
-      return { error: "Unauthorized" };
+      return { error: "Permission Denied: Only Super Admin can change roles." };
     }
 
     const user = await db.user.findUnique({
       where: { id: targetUserId },
-      select: { role: true },
+      select: { email: true, role: true },
     });
 
     if (!user) {
       return { error: "User not found" };
+    }
+
+    if (user.email === SUPER_ADMIN_EMAIL) {
+      return { error: "Cannot modify the Super Admin's role." };
     }
 
     const nextRole = user.role === UserRole.ADMIN ? UserRole.USER : UserRole.ADMIN;
@@ -172,12 +193,9 @@ export async function toggleUserRole(targetUserId: string) {
 
 export async function toggleUserPlan(targetUserId: string) {
   try {
-    const adminCheck = await verifyAdmin();
+    const adminCheck = await verifySuperAdmin();
     if (!adminCheck.authorized) {
-      if (adminCheck.isSandbox) {
-        return { error: "Permission Denied: Sandbox mode restricts billing adjustments." };
-      }
-      return { error: "Unauthorized" };
+      return { error: "Permission Denied: Only Super Admin can adjust billing." };
     }
 
     const sub = await db.subscription.findUnique({
@@ -208,12 +226,9 @@ export async function toggleUserPlan(targetUserId: string) {
 
 export async function adjustUserCredits(targetUserId: string, amount: number) {
   try {
-    const adminCheck = await verifyAdmin();
+    const adminCheck = await verifySuperAdmin();
     if (!adminCheck.authorized) {
-      if (adminCheck.isSandbox) {
-        return { error: "Permission Denied: Sandbox mode restricts credit allocation." };
-      }
-      return { error: "Unauthorized" };
+      return { error: "Permission Denied: Only Super Admin can allocate credits." };
     }
 
     const credit = await db.aICredit.findUnique({
@@ -272,21 +287,5 @@ export async function moderateQuestion(questionId: string, action: "unpublish" |
 }
 
 export async function selfPromoteToAdmin() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { error: "Unauthorized" };
-    }
-
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { role: UserRole.ADMIN },
-    });
-
-    revalidatePath("/admin");
-    return { success: true };
-  } catch (error) {
-    console.error("Self promote error:", error);
-    return { error: "Failed to self-promote." };
-  }
+  return { error: "Self-promotion is permanently disabled for security reasons." };
 }

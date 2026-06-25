@@ -8,6 +8,8 @@ import { updateProfile, updatePassword } from "@/actions/user";
 import { parseResumeAndSetupWorkspaces, extractTextFromPdfAction, deleteResume } from "@/actions/resume";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const fadeInUp = { hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } };
 
@@ -29,6 +31,8 @@ interface SettingsFormProps {
 }
 
 export default function SettingsForm({ user, activeResume }: SettingsFormProps) {
+  const router = useRouter();
+  const { update } = useSession();
   const [name, setName] = useState(user.name || "");
   const [avatarUrl, setAvatarUrl] = useState(user.image || "");
   const [profileLoading, setProfileLoading] = useState(false);
@@ -64,6 +68,8 @@ export default function SettingsForm({ user, activeResume }: SettingsFormProps) 
         return;
       }
       toast.success("Profile updated successfully!");
+      await update();
+      router.refresh();
     } catch (e) {
       toast.error("Failed to update profile");
     } finally {
@@ -87,9 +93,36 @@ export default function SettingsForm({ user, activeResume }: SettingsFormProps) 
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setAvatarUrl(base64);
-      toast.success("Avatar loaded. Click Save Changes to apply!");
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 150;
+        const MAX_HEIGHT = 150;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        setAvatarUrl(dataUrl);
+        toast.success("Avatar loaded and compressed. Click Save Changes to apply!");
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 const adminRoutes = ["/admin"];
 
-export default auth((req) => {
+export const proxy = auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
   const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
@@ -26,6 +26,14 @@ export default auth((req) => {
   if (!isPublicRoute && !isLoggedIn) {
     const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, nextUrl));
+  }
+
+  // Protect admin routes
+  if (isAdminRoute) {
+    const role = (req.auth?.user as { role?: string })?.role;
+    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    }
   }
 
   return NextResponse.next();

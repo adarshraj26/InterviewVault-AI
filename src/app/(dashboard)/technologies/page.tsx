@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw, Shield, User } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, Sparkles, Loader2, Trash2, Pencil, Upload, Check, RefreshCw, Shield, User, Globe } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, ConfirmDeleteButton, DailyChallenge } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { TECH_ICONS } from "@/constants";
 import { getTechnologies, createTechnology, deleteTechnology, updateTechnology } from "@/actions/technologies";
 import { importMarkdownQuestionsAction, recategorizeGeneralQuestionsAction } from "@/actions/questions";
+import { toggleGlobalTemplate } from "@/actions/template-provisioning";
 import { toast } from "sonner";
 import { BulkImportModal } from "./[slug]/BulkImportModal";
 import { useSession } from "next-auth/react";
@@ -29,6 +30,8 @@ interface TechnologyWithQuestions {
   slug: string;
   description: string | null;
   isGlobal: boolean;
+  isGlobalTemplate: boolean;
+  sourceTemplateId: string | null;
   questions: {
     revisionStatus: string;
   }[];
@@ -36,7 +39,7 @@ interface TechnologyWithQuestions {
 
 export default function TechnologiesPage() {
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const isAdmin = (session?.user as any)?.role === "ADMIN" || (session?.user as any)?.role === "SUPER_ADMIN";
   const [techList, setTechList] = useState<TechnologyWithQuestions[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +48,7 @@ export default function TechnologiesPage() {
   const [newTechDesc, setNewTechDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editTarget, setEditTarget] = useState<TechnologyWithQuestions | null>(null);
+  const [togglingTemplateId, setTogglingTemplateId] = useState<string | null>(null);
 
   // Markdown Import state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -132,6 +136,46 @@ export default function TechnologiesPage() {
       toast.error(editTarget ? "Failed to update technology" : "Failed to add technology");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ── Global Template Toggle Handler ──────────────────────
+  const handleToggleGlobalTemplate = async (tech: TechnologyWithQuestions) => {
+    const newState = !tech.isGlobalTemplate;
+    setTogglingTemplateId(tech.id);
+
+    const toastId = `toggle-template-${tech.id}`;
+    toast.loading(
+      newState
+        ? `Making "${tech.name}" a global template and provisioning to all users...`
+        : `Removing "${tech.name}" from global templates...`,
+      { id: toastId }
+    );
+
+    try {
+      const res = await toggleGlobalTemplate(tech.id, newState);
+      if (res.error) {
+        toast.error(res.error, { id: toastId });
+        return;
+      }
+
+      if (newState && res.provisioned !== undefined) {
+        toast.success(
+          `"${tech.name}" is now a global template! Provisioned to ${res.provisioned} user(s). ${res.skipped || 0} already had it.`,
+          { id: toastId, duration: 5000 }
+        );
+      } else {
+        toast.success(
+          `"${tech.name}" removed from global templates. Existing user copies are unaffected.`,
+          { id: toastId }
+        );
+      }
+
+      loadTechnologies();
+    } catch (err) {
+      toast.error("Failed to toggle global template", { id: toastId });
+    } finally {
+      setTogglingTemplateId(null);
     }
   };
 
@@ -247,8 +291,8 @@ export default function TechnologiesPage() {
     tech.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const globalTechs = filteredTechs.filter((t) => t.isGlobal);
-  const personalTechs = filteredTechs.filter((t) => !t.isGlobal);
+  const templateTechs = filteredTechs.filter((t) => t.isGlobalTemplate);
+  const personalTechs = filteredTechs.filter((t) => !t.isGlobalTemplate);
 
   return (
     <motion.div
@@ -293,46 +337,69 @@ export default function TechnologiesPage() {
       ) : (
         <div className="space-y-10">
 
-          {/* ── Official Technologies ──────────────────── */}
-          {globalTechs.length > 0 && (
+          {/* ── Template / Official Technologies ──────────────────── */}
+          {templateTechs.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-4 w-4 text-blue-400" />
-                <h2 className="text-base font-bold text-blue-400 uppercase tracking-wider">Official Technologies</h2>
-                <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-semibold">{globalTechs.length}</span>
+                <h2 className="text-base font-bold text-blue-400 uppercase tracking-wider">
+                  {isAdmin ? "Global Templates" : "Tech-Stacks Library"}
+                </h2>
+                <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-semibold">{templateTechs.length}</span>
               </div>
               <motion.div variants={staggerContainer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {globalTechs.map((tech) => {
+                {templateTechs.map((tech) => {
                   const questionsCount = tech.questions.length;
-                  const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
+                  const masteredCount = tech.userId === session?.user?.id
+                    ? tech.questions.filter((q) => q.revisionStatus === "MASTERED").length
+                    : 0;
                   const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
                   const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
+                  const isToggling = togglingTemplateId === tech.id;
                   return (
                     <motion.div key={tech.id} variants={fadeInUp}>
                       <Link href={`/technologies/${tech.slug}`} className="cursor-pointer">
                         <GlassCard hover className="relative overflow-hidden group border border-blue-500/10 hover:border-blue-500/30">
-                          {/* Official Badge */}
-                          <div className="absolute top-3 left-3 flex items-center gap-1 bg-blue-500/15 border border-blue-500/25 text-blue-400 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider z-10">
-                            <Shield className="h-2.5 w-2.5" /> Official
-                          </div>
-
                           {/* Admin Controls */}
-                          {isAdmin && (
-                            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 z-10">
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                            {/* Global Template Toggle — Admin Only */}
+                            {isAdmin && tech.isGlobalTemplate && (
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleGlobalTemplate(tech); }}
+                                disabled={isToggling}
+                                className={cn(
+                                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border",
+                                  tech.isGlobalTemplate
+                                    ? "bg-emerald-500/15 border-emerald-500/25 text-emerald-400 hover:bg-red-500/15 hover:border-red-500/25 hover:text-red-400"
+                                    : "bg-muted/50 border-border text-muted-foreground hover:bg-emerald-500/15 hover:border-emerald-500/25 hover:text-emerald-400"
+                                )}
+                                title={tech.isGlobalTemplate ? "Click to remove from global templates" : "Click to make global template"}
+                              >
+                                {isToggling ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Globe className="h-3 w-3" />
+                                )}
+                                {tech.isGlobalTemplate ? "Global ON" : "Global OFF"}
+                              </button>
+                            )}
+
+                            {/* Edit & Delete — Admin or own tech */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleStartEditTech(tech); }}
                                 className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
-                                title="Edit Global Technology"
+                                title="Edit Technology"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <ConfirmDeleteButton
                                 onDelete={() => handleDeleteTech(tech.id, tech.name)}
                                 className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
-                                tooltip="Delete Global Technology"
+                                tooltip="Delete Technology"
                               />
                             </div>
-                          )}
+                          </div>
 
                           {/* Tech Icon */}
                           <div className="text-4xl mt-6 mb-4 group-hover:scale-110 transition-transform">{icon}</div>
@@ -376,7 +443,7 @@ export default function TechnologiesPage() {
               <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-semibold">{personalTechs.length}</span>
             </div>
 
-            {personalTechs.length === 0 && globalTechs.length === 0 ? (
+            {personalTechs.length === 0 && templateTechs.length === 0 ? (
               <div className="text-center py-20 bg-card/20 border border-border/50 rounded-2xl p-8 max-w-md mx-auto">
                 <Sparkles className="h-10 w-10 text-muted-foreground/45 mx-auto mb-4" />
                 <h3 className="font-semibold text-lg mb-1">No workspaces yet</h3>
@@ -397,6 +464,7 @@ export default function TechnologiesPage() {
                   const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
                   const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
                   const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
+                  const isToggling = togglingTemplateId === tech.id;
                   return (
                     <motion.div key={tech.id} variants={fadeInUp}>
                       <Link href={`/technologies/${tech.slug}`} className="cursor-pointer">
@@ -406,19 +474,43 @@ export default function TechnologiesPage() {
                             <User className="h-2.5 w-2.5" /> Personal
                           </div>
 
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 z-10">
-                            <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleStartEditTech(tech); }}
-                              className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
-                              title="Edit Workspace"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <ConfirmDeleteButton
-                              onDelete={() => handleDeleteTech(tech.id, tech.name)}
-                              className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
-                              tooltip="Delete Workspace"
-                            />
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                            {/* Admin: Global Template Toggle for personal techs */}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleGlobalTemplate(tech); }}
+                                disabled={isToggling}
+                                className={cn(
+                                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border",
+                                  tech.isGlobalTemplate
+                                    ? "bg-emerald-500/15 border-emerald-500/25 text-emerald-400 hover:bg-red-500/15 hover:border-red-500/25 hover:text-red-400"
+                                    : "bg-muted/50 border-border text-muted-foreground hover:bg-emerald-500/15 hover:border-emerald-500/25 hover:text-emerald-400 opacity-0 group-hover:opacity-100"
+                                )}
+                                title={tech.isGlobalTemplate ? "Click to remove from global templates" : "Click to make global template"}
+                              >
+                                {isToggling ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Globe className="h-3 w-3" />
+                                )}
+                                {tech.isGlobalTemplate ? "Global ON" : "Make Global"}
+                              </button>
+                            )}
+
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleStartEditTech(tech); }}
+                                className="p-1.5 rounded-lg border border-border bg-black/15 hover:bg-primary/15 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                                title="Edit Workspace"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <ConfirmDeleteButton
+                                onDelete={() => handleDeleteTech(tech.id, tech.name)}
+                                className="w-7 h-7 border border-border bg-black/15 hover:bg-red-500/15 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer"
+                                tooltip="Delete Workspace"
+                              />
+                            </div>
                           </div>
 
                           {/* Tech Icon */}

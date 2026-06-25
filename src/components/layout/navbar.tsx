@@ -5,6 +5,8 @@ import { Menu, Search, Bell, X, Trash2, Check, Info, Clock } from "lucide-react"
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession, signOut } from "next-auth/react";
+import Link from "next/link";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -21,7 +23,9 @@ interface NotificationItem {
 }
 
 export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
+  const { data: session } = useSession();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: "1",
@@ -58,6 +62,10 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
       }
+      // Also close user menu if click is outside it (simplified)
+      if (!(event.target as Element).closest("#user-menu-container")) {
+        setUserMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -79,6 +87,11 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
 
   const removeNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    window.location.href = "/login";
   };
 
   return (
@@ -239,13 +252,53 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
 
           <ThemeToggle />
 
-          {/* User Avatar */}
-          <button
-            id="user-menu"
-            className="h-9 w-9 rounded-xl gradient-bg flex items-center justify-center text-white text-sm font-bold ml-1 shadow-lg shadow-primary/20 cursor-pointer"
-          >
-            A
-          </button>
+          {/* User Avatar & Menu */}
+          <div className="relative" id="user-menu-container">
+            <button
+              id="user-menu"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-sm font-bold ml-1 shadow-lg shadow-primary/20 cursor-pointer overflow-hidden border border-border"
+            >
+              {session?.user?.image ? (
+                <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full gradient-bg flex items-center justify-center">
+                  {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+              )}
+            </button>
+
+            {/* Dropdown */}
+            <AnimatePresence>
+              {userMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-3 w-48 rounded-xl bg-card border border-border shadow-2xl overflow-hidden z-50 py-1"
+                >
+                  <div className="px-4 py-2 border-b border-border/50">
+                    <p className="text-sm font-semibold truncate">{session?.user?.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
+                  </div>
+                  <Link 
+                    href="/settings"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors font-medium w-full text-left"
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </header>

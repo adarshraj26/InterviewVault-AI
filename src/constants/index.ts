@@ -86,6 +86,8 @@ export const TECH_ICONS: Record<string, string> = {
 };
 
 // ── Plan Features (All Free) ────────────────────────────────
+export const SUPER_ADMIN_EMAIL = "contact.adarshraj26@gmail.com";
+
 export const FREE_FEATURES = [
   "Unlimited Technology Workspaces",
   "Unlimited Questions",

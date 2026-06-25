@@ -15,6 +15,7 @@ datasource db {
 enum UserRole {
   USER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum Difficulty {
@@ -154,13 +155,15 @@ model Skill {
 // ── Technology Workspaces ──────────────────────────────────
 
 model Technology {
-  id          String  @id @default(cuid())
-  name        String
-  slug        String
-  icon        String?
-  description String?
-  order       Int     @default(0)
-  isGlobal    Boolean @default(false)
+  id                String  @id @default(cuid())
+  name              String
+  slug              String
+  icon              String?
+  description       String?
+  order             Int     @default(0)
+  isGlobal          Boolean @default(false)
+  isGlobalTemplate  Boolean @default(false)  // Admin toggle: clone to all users when ON
+  sourceTemplateId  String?                  // Points to admin's template tech ID (null for originals)
 
   userId      String
   user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -174,25 +177,28 @@ model Technology {
   @@unique([userId, slug])
   @@index([userId])
   @@index([isGlobal])
+  @@index([isGlobalTemplate])
+  @@index([sourceTemplateId])
 }
 
 // ── Questions ──────────────────────────────────────────────
 
 model Question {
-  id                 String             @id @default(cuid())
-  title              String
-  answer             String?            @db.Text
-  codeExample        String?            @db.Text
-  codeLanguage       String?
-  theoryExample      String?            @db.Text
-  difficulty         Difficulty         @default(MEDIUM)
-  interviewFrequency InterviewFrequency @default(COMMON)
-  tags               String[]
-  revisionStatus     RevisionStatus     @default(NOT_STARTED)
-  isPublic           Boolean            @default(false)
-  isCommunityShared  Boolean            @default(false)
-  isGlobal           Boolean            @default(false)
-  followUpQuestions  String[]
+  id                       String             @id @default(cuid())
+  title                    String
+  answer                   String?            @db.Text
+  codeExample              String?            @db.Text
+  codeLanguage             String?
+  theoryExample            String?            @db.Text
+  difficulty               Difficulty         @default(MEDIUM)
+  interviewFrequency       InterviewFrequency @default(COMMON)
+  tags                     String[]
+  revisionStatus           RevisionStatus     @default(NOT_STARTED)
+  isPublic                 Boolean            @default(false)
+  isCommunityShared        Boolean            @default(false)
+  isGlobal                 Boolean            @default(false)
+  followUpQuestions        String[]
+  sourceTemplateQuestionId String?            // Points to the template question this was cloned from
 
   technologyId       String
   technology         Technology         @relation(fields: [technologyId], references: [id], onDelete: Cascade)
@@ -212,6 +218,7 @@ model Question {
   @@index([isPublic])
   @@index([isGlobal])
   @@index([isCommunityShared])
+  @@index([sourceTemplateQuestionId])
 }
 
 // ── Revision System ────────────────────────────────────────

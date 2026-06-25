@@ -25,7 +25,8 @@ import {
   Server,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { Logo, ThemeToggle, AnimatedCounter, Footer } from "@/components/shared";
 import { FREE_FEATURES } from "@/constants";
 import { cn } from "@/lib/utils";
@@ -186,11 +187,23 @@ const HOW_IT_WORKS = [
 
 // ── Page Component ─────────────────────────────────────────
 export default function LandingPage() {
-  const featuresRef = useRef(null);
-  const topicsRef = useRef(null);
-  const featuredRef = useRef(null);
+  const { data: session, status } = useSession();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const topicsRef = useRef<HTMLDivElement>(null);
+  const featuredRef = useRef<HTMLDivElement>(null);
+  const pricingRef = useRef<HTMLDivElement>(null);
   const isTopicsInView = useInView(topicsRef, { once: true, margin: "-80px" });
   const isFeaturedInView = useInView(featuredRef, { once: true, margin: "-80px" });
+
+  const scrollToPricing = () => {
+    pricingRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    window.location.href = "/login";
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -256,16 +269,67 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <ThemeToggle />
-              <Link href="/login" className="hidden sm:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2">
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="gradient-bg text-white text-xs sm:text-sm font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/25 flex items-center gap-1.5 group whitespace-nowrap"
-              >
-                Get Started
-                <ArrowRight className="h-3.5 w-3.5 hidden sm:block group-hover:translate-x-0.5 transition-transform" />
-              </Link>
+              
+              {status === "authenticated" ? (
+                <div className="relative">
+                  <button 
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-card border border-border shadow-sm hover:border-primary/50 transition-colors"
+                  >
+                    {session?.user?.image ? (
+                      <img src={session.user.image} alt="User" className="w-8 h-8 rounded-full object-cover border border-border" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-inner">
+                        {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium hidden sm:block truncate max-w-[100px]">{session?.user?.name || "User"}</span>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {dropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card border border-border shadow-xl z-50 overflow-hidden py-1">
+                        <div className="px-4 py-2 border-b border-border/50">
+                          <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
+                        </div>
+                        <Link 
+                          href="/dashboard"
+                          className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors font-medium"
+                        >
+                          Dashboard
+                        </Link>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          Switch Account
+                        </button>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Link href="/login" className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-2 sm:px-4 py-2">
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="gradient-bg text-white text-xs sm:text-sm font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/25 flex items-center gap-1.5 group whitespace-nowrap"
+                  >
+                    Get Started
+                    <ArrowRight className="h-3.5 w-3.5 hidden sm:block group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

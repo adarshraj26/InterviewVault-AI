@@ -90,15 +90,6 @@ export async function updateQuestion(
   }
 
   try {
-    // Block non-admins from editing global questions
-    const existing = await db.question.findUnique({ where: { id } });
-    if (existing?.isGlobal) {
-      const role = await getCurrentUserRole(session.user.id);
-      if (role !== UserRole.ADMIN) {
-        return { error: "Permission denied: Cannot edit Official questions" };
-      }
-    }
-
     const question = await db.question.update({
       where: {
         id,
@@ -123,15 +114,6 @@ export async function deleteQuestion(id: string) {
   }
 
   try {
-    // Block non-admins from deleting global questions
-    const existing = await db.question.findUnique({ where: { id } });
-    if (existing?.isGlobal) {
-      const role = await getCurrentUserRole(session.user.id);
-      if (role !== UserRole.ADMIN) {
-        return { error: "Permission denied: Cannot delete Official questions" };
-      }
-    }
-
     await db.question.delete({
       where: {
         id,

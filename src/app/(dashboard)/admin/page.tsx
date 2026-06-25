@@ -36,7 +36,9 @@ import {
   moderateQuestion,
   selfPromoteToAdmin,
 } from "@/actions/admin";
-import { getGlobalTechnologies, createGlobalTechnology, deleteGlobalTechnology } from "@/actions/ownership";
+import { getGlobalTechnologies } from "@/actions/ownership";
+import { toggleGlobalTemplate } from "@/actions/template-provisioning";
+import { createTechnology, deleteTechnology } from "@/actions/technologies";
 import { toast } from "sonner";
 
 const fadeInUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -46,7 +48,7 @@ export default function AdminPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "library" | "moderation" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "library" | "moderation" | "settings">("library");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // Global Library state
@@ -61,7 +63,7 @@ export default function AdminPage() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maxFreeCredits, setMaxFreeCredits] = useState(50);
 
-  const loadData = async () => {
+  const loadData = async (initial = false) => {
     try {
       const [res, techRes] = await Promise.all([getAdminData(), getGlobalTechnologies()]);
       if (res.error) {
@@ -69,6 +71,9 @@ export default function AdminPage() {
         return;
       }
       setData(res);
+      if (initial && res.isSuperAdmin) {
+        setActiveTab("users");
+      }
       if (techRes.success) {
         setGlobalTechs(techRes.technologies || []);
       }
@@ -81,7 +86,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, []);
 
   const handleSelfPromote = async () => {
@@ -181,16 +186,27 @@ export default function AdminPage() {
     
     setSubmittingTech(true);
     try {
-      const res = await createGlobalTechnology(newTechName, newTechDesc);
+      // Create the technology under the admin's account
+      const res = await createTechnology(newTechName, newTechDesc);
       if (res.error) {
         toast.error(res.error);
-      } else {
-        toast.success("Global Technology created!");
-        setIsTechModalOpen(false);
-        setNewTechName("");
-        setNewTechDesc("");
-        loadData();
+        return;
       }
+      // Then mark it as a global template (provisions to all users)
+      if (res.technology) {
+        const toggleRes = await toggleGlobalTemplate(res.technology.id, true);
+        if (toggleRes.error) {
+          toast.error(toggleRes.error);
+        } else {
+          toast.success(
+            `Global Technology created and provisioned to ${toggleRes.provisioned || 0} users!`
+          );
+        }
+      }
+      setIsTechModalOpen(false);
+      setNewTechName("");
+      setNewTechDesc("");
+      loadData();
     } catch (err) {
       toast.error("Failed to create global technology.");
     } finally {
@@ -199,15 +215,18 @@ export default function AdminPage() {
   };
 
   const handleDeleteGlobalTech = async (id: string) => {
-    if (!confirm("Are you sure? This deletes the global technology and all its questions.")) return;
+    if (!confirm("Are you sure? This deletes the global technology template. Existing user copies will remain.")) return;
     
     setActionLoadingId(id + "-del-tech");
     try {
-      const res = await deleteGlobalTechnology(id);
+      // First disable the template flag
+      await toggleGlobalTemplate(id, false);
+      // Then delete the admin's own technology
+      const res = await deleteTechnology(id);
       if (res.error) {
         toast.error(res.error);
       } else {
-        toast.success("Global Technology deleted!");
+        toast.success("Global Technology template deleted! User copies are unaffected.");
         loadData();
       }
     } catch (err) {
@@ -226,7 +245,7 @@ export default function AdminPage() {
     );
   }
 
-  const { stats, users = [], communityQuestions = [], isSandbox } = data || {};
+  const { stats, users = [], communityQuestions = [], isSandbox, isSuperAdmin } = data || {};
 
   // Filtering users
   const filteredUsers = users.filter(
@@ -289,7 +308,7 @@ export default function AdminPage() {
           </div>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="self-start sm:self-center flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-black/10 hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-semibold cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -328,10 +347,10 @@ export default function AdminPage() {
       <motion.div variants={fadeInUp} className="flex border-b border-border/50">
         <div className="flex gap-2">
           {[
-            { id: "users", label: "User Accounts", icon: Users },
+            ...(isSuperAdmin ? [{ id: "users", label: "User Accounts", icon: Users }] : []),
             { id: "library", label: "Global Library", icon: BookOpen },
             { id: "moderation", label: "Moderation Queue", icon: Flag },
-            { id: "settings", label: "System Config", icon: Settings },
+            ...(isSuperAdmin ? [{ id: "settings", label: "System Config", icon: Settings }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
@@ -414,7 +433,9 @@ export default function AdminPage() {
                           <td className="py-3.5">
                             <span className={cn(
                               "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                              user.role === "ADMIN"
+                              user.role === "SUPER_ADMIN"
+                                ? "bg-purple-500/10 border-purple-500/30 text-purple-400"
+                                : user.role === "ADMIN"
                                 ? "bg-red-500/10 border-red-500/30 text-red-400"
                                 : "bg-blue-500/10 border-blue-500/30 text-blue-400"
                             )}>
@@ -453,38 +474,44 @@ export default function AdminPage() {
                           {/* Actions */}
                           <td className="py-3.5 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Toggle Role */}
-                              <button
-                                onClick={() => handleToggleRole(user.id)}
-                                disabled={actionLoadingId === user.id + "-role"}
-                                className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                                title="Toggle Role (User / Admin)"
-                              >
-                                <UserCheck className="h-3 w-3" />
-                                <span>Toggle Role</span>
-                              </button>
+                              {isSuperAdmin ? (
+                                <>
+                                  {/* Toggle Role */}
+                                  <button
+                                    onClick={() => handleToggleRole(user.id)}
+                                    disabled={actionLoadingId === user.id + "-role"}
+                                    className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                    title="Toggle Role (User / Admin)"
+                                  >
+                                    <UserCheck className="h-3 w-3" />
+                                    <span>Toggle Role</span>
+                                  </button>
 
-                              {/* Toggle Plan */}
-                              <button
-                                onClick={() => handleTogglePlan(user.id)}
-                                disabled={actionLoadingId === user.id + "-plan"}
-                                className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-amber-500/10 hover:border-amber-500/30 text-muted-foreground hover:text-amber-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                                title="Toggle Plan (Free / Pro)"
-                              >
-                                <CreditCard className="h-3 w-3" />
-                                <span>Toggle Plan</span>
-                              </button>
+                                  {/* Toggle Plan */}
+                                  <button
+                                    onClick={() => handleTogglePlan(user.id)}
+                                    disabled={actionLoadingId === user.id + "-plan"}
+                                    className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-amber-500/10 hover:border-amber-500/30 text-muted-foreground hover:text-amber-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                    title="Toggle Plan (Free / Pro)"
+                                  >
+                                    <CreditCard className="h-3 w-3" />
+                                    <span>Toggle Plan</span>
+                                  </button>
 
-                              {/* Add Credits */}
-                              <button
-                                onClick={() => handleAdjustCredits(user.id, 50)}
-                                disabled={actionLoadingId === user.id + "-credits"}
-                                className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-emerald-500/10 hover:border-emerald-500/30 text-muted-foreground hover:text-emerald-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                                title="Grant 50 AI Credits"
-                              >
-                                <Plus className="h-3 w-3" />
-                                <span>+50 Creds</span>
-                              </button>
+                                  {/* Add Credits */}
+                                  <button
+                                    onClick={() => handleAdjustCredits(user.id, 50)}
+                                    disabled={actionLoadingId === user.id + "-credits"}
+                                    className="px-2 py-1 rounded-lg border border-border bg-black/15 hover:bg-emerald-500/10 hover:border-emerald-500/30 text-muted-foreground hover:text-emerald-400 transition-all font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                    title="Grant 50 AI Credits"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    <span>+50 Creds</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic">Restricted</span>
+                              )}
                             </div>
                           </td>
                         </tr>
