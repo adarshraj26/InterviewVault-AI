@@ -344,7 +344,7 @@ export default function TechnologiesPage() {
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-4 w-4 text-blue-400" />
                 <h2 className="text-base font-bold text-blue-400 uppercase tracking-wider">
-                  {isAdmin ? "Global Templates" : "Tech-Stacks Library"}
+                  Tech-Stacks Library
                 </h2>
                 <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-semibold">{templateTechs.length}</span>
               </div>
