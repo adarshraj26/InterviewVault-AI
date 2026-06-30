@@ -22,6 +22,11 @@ interface AIEvaluationResult {
   communication: number;
   score: number;
   feedback: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  missingConcepts?: string[];
+  suggestedAnswer?: string;
+  confidenceLevel?: string;
   areasOfImprovement: string[];
 }
 
@@ -107,6 +112,33 @@ export async function startMockInterview(technology: string, difficulty: Difficu
   }
 }
 
+/**
+ * Returns true if the given string is gibberish/meaningless (random chars, no real words).
+ */
+function isGibberish(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+
+  // Under 15 characters → too short to be a meaningful technical answer
+  if (trimmed.length < 15) return true;
+
+  // Count alphabetic characters vs total — if less than 50% alphabetic, likely gibberish
+  const alphaCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
+  if (alphaCount / trimmed.length < 0.5) return true;
+
+  // Count distinct words of length >= 3
+  const words = trimmed.toLowerCase().split(/\s+/).filter((w) => /^[a-z]{3,}$/.test(w));
+  if (words.length < 2) return true;
+
+  // Check if all words are very short "words" that are likely keyboard mashing
+  // e.g. "asdf qwer zxcv" — letters that don't form real syllable patterns
+  const vowelPattern = /[aeiou]/;
+  const realWords = words.filter((w) => vowelPattern.test(w));
+  if (realWords.length === 0) return true;
+
+  return false;
+}
+
 export async function submitAnswer(interviewQuestionId: string, userAnswer: string) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -123,6 +155,43 @@ export async function submitAnswer(interviewQuestionId: string, userAnswer: stri
       return { error: "Question not found" };
     }
 
+    // ── Pre-flight validation ────────────────────────────────────────────────
+    // If the answer is empty, too short, or gibberish, return score 0 immediately
+    // without wasting an AI API call.
+    const trimmedAnswer = (userAnswer || "").trim();
+    if (!trimmedAnswer || isGibberish(trimmedAnswer)) {
+      const zeroEvaluation: AIEvaluationResult = {
+        accuracy: 0,
+        completeness: 0,
+        communication: 0,
+        score: 0,
+        feedback: !trimmedAnswer
+          ? "No answer was provided. Please write a meaningful technical explanation."
+          : "The answer appears to be gibberish or too short to evaluate. Please provide a proper technical explanation of at least 2-3 sentences.",
+        strengths: [],
+        weaknesses: ["Answer is either empty, too short, or contains no meaningful technical content."],
+        missingConcepts: ["A proper technical explanation addressing the question."],
+        suggestedAnswer: undefined,
+        confidenceLevel: !trimmedAnswer ? "No Answer" : "Very Low",
+        areasOfImprovement: [
+          "Write at least 2-3 complete sentences explaining the concept.",
+          "Include relevant technical terminology.",
+          "Provide a concrete example if possible.",
+        ],
+      };
+
+      const savedQuestion = await db.mockInterviewQuestion.update({
+        where: { id: interviewQuestionId },
+        data: {
+          userAnswer: trimmedAnswer || "",
+          score: 0,
+          feedback: JSON.stringify(zeroEvaluation),
+        },
+      });
+      return { success: true, evaluation: savedQuestion };
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     // Evaluate response using Gemini AI
     const prompt = buildAnswerEvaluationPrompt(
       question.question,
@@ -138,38 +207,51 @@ export async function submitAnswer(interviewQuestionId: string, userAnswer: stri
       
       const userText = (userAnswer || "").toLowerCase().trim();
       const expectedText = (question.expectedAnswer || "").toLowerCase().trim();
-      
-      if (!userText) {
+
+      if (!userText || isGibberish(userText)) {
+        // Empty or gibberish — zero score, no AI needed
         evaluation = {
           accuracy: 0,
           completeness: 0,
           communication: 0,
           score: 0,
-          feedback: "No answer was provided. Try to state the core definition and provide examples in technical interviews.",
-          areasOfImprovement: ["Provide a response to the question", "Explain the concept in detail"],
+          feedback: "No meaningful answer was provided. Please write a proper technical explanation.",
+          strengths: [],
+          weaknesses: ["Answer is empty or contains no meaningful technical content."],
+          missingConcepts: ["A proper explanation addressing the question."],
+          confidenceLevel: "No Answer",
+          areasOfImprovement: ["Provide a complete answer of at least 2-3 sentences.", "Use relevant technical terminology."],
         };
       } else {
-        // Simple word-matching heuristic
-        const expectedWords = new Set(expectedText.split(/\W+/).filter(w => w.length > 4));
-        const userWords = new Set(userText.split(/\W+/).filter(w => w.length > 4));
-        
+        // Word-overlap heuristic — base at 0, not 50
+        const expectedWords = new Set(expectedText.split(/\W+/).filter((w) => w.length > 4));
+        const userWords = new Set(userText.split(/\W+/).filter((w) => w.length > 4));
+
         let matchCount = 0;
-        expectedWords.forEach(w => {
+        expectedWords.forEach((w) => {
           if (userWords.has(w)) matchCount++;
         });
-        
-        const overlapRatio = expectedWords.size > 0 ? matchCount / expectedWords.size : 0.5;
-        const baseScore = 50 + Math.min(45, Math.round(overlapRatio * 50) + Math.min(10, Math.round(userText.length / 50)));
-        
+
+        // Fraction of expected keywords the user matched (0.0 – 1.0)
+        const overlapRatio = expectedWords.size > 0 ? matchCount / expectedWords.size : 0;
+        // Length bonus: max +10 for long, thorough answers (>= 500 chars)
+        const lengthBonus = Math.min(10, Math.round(userText.length / 50));
+        // Base score starts at 0, scaled purely by overlap + length
+        const baseScore = Math.min(90, Math.round(overlapRatio * 85) + lengthBonus);
+
         evaluation = {
           accuracy: baseScore,
-          completeness: Math.max(40, baseScore - 5),
-          communication: Math.min(95, 60 + Math.min(30, Math.round(userText.length / 30))),
+          completeness: Math.max(0, baseScore - 5),
+          communication: Math.min(90, Math.round(userText.length / 10) + 20),
           score: baseScore,
-          feedback: `[Local Evaluation Fallback] Good effort! Your answer covers key concepts and has a length of ${userAnswer.length} characters. Try to expand further on the practical implementation details and corner cases.`,
+          feedback: `[Local Evaluation Fallback] Your answer matched approximately ${Math.round(overlapRatio * 100)}% of the key concepts. ${baseScore < 30 ? "More depth and technical detail is required." : "Good effort — expand on the practical examples and edge cases."}`,
+          strengths: baseScore >= 50 ? ["Demonstrates some relevant knowledge."] : [],
+          weaknesses: baseScore < 30 ? ["Lacks key technical terms and concepts from the expected answer."] : [],
+          missingConcepts: [],
+          confidenceLevel: baseScore >= 75 ? "High" : baseScore >= 50 ? "Medium" : baseScore >= 20 ? "Low" : "Very Low",
           areasOfImprovement: [
-            "Elaborate on real-world usage scenarios",
-            "Incorporate industry-standard terminology",
+            "Cover more core concepts from the expected answer.",
+            "Include a concrete code example or scenario.",
           ],
         };
       }

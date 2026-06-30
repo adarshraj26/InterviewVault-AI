@@ -25,17 +25,47 @@ export async function getQuestions(technologyId?: string) {
     throw new Error("Unauthorized");
   }
 
+  const userId = session.user.id;
+
   const questions = await db.question.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       ...(technologyId ? { technologyId } : {}),
+    },
+    include: {
+      revisionRecords: {
+        where: { userId },
+        orderBy: { revisedAt: "desc" },
+      },
+      bookmarks: {
+        where: { userId },
+        select: { id: true },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  // No auto-migration of markdown to HTML to preserve first-class markdown rendering.
-
-  return questions;
+  return questions.map((q) => {
+    const records = q.revisionRecords || [];
+    let dynamicStatus = "NOT_STARTED";
+    if (records.length > 0) {
+      const latest = records[0];
+      if (latest.quality === 5) {
+        dynamicStatus = "MASTERED";
+      } else {
+        const reps = records.filter((r: any) => r.quality >= 3).length;
+        if (reps > 1) {
+          dynamicStatus = "REVISED_ONCE";
+        } else {
+          dynamicStatus = "LEARNING";
+        }
+      }
+    }
+    return {
+      ...q,
+      revisionStatus: dynamicStatus,
+    };
+  });
 }
 
 export async function createQuestion(data: {
@@ -90,17 +120,72 @@ export async function updateQuestion(
   }
 
   try {
-    const question = await db.question.update({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-      data,
+    const userId = session.user.id;
+    // Check if the question exists and who owns it
+    const existingQuestion = await db.question.findUnique({
+      where: { id },
+      select: { userId: true },
     });
 
-    revalidatePath("/technologies");
-    revalidatePath("/revision");
-    return { success: true, question: serializeQuestion(question) };
+    if (!existingQuestion) {
+      return { error: "Question not found" };
+    }
+
+    const isOwner = existingQuestion.userId === userId;
+
+    // Handle user-specific revisionStatus updates via RevisionRecords
+    if (data.revisionStatus !== undefined) {
+      const status = data.revisionStatus;
+      if (status === "MASTERED") {
+        // Delete existing records to avoid duplicates
+        await db.revisionRecord.deleteMany({
+          where: { questionId: id, userId },
+        });
+        // Create new record representing full completion
+        await db.revisionRecord.create({
+          data: {
+            questionId: id,
+            userId,
+            quality: 5,
+          },
+        });
+      } else if (status === "NOT_STARTED") {
+        // Reset status by deleting user's revision records for this question
+        await db.revisionRecord.deleteMany({
+          where: { questionId: id, userId },
+        });
+      } else {
+        const quality = status === "LEARNING" ? 3 : 4;
+        await db.revisionRecord.create({
+          data: {
+            questionId: id,
+            userId,
+            quality,
+          },
+        });
+      }
+    }
+
+    if (isOwner) {
+      // If the user is the owner, update the question record in the database
+      const question = await db.question.update({
+        where: { id },
+        data,
+      });
+
+      revalidatePath("/technologies");
+      revalidatePath("/revision");
+      revalidatePath("/dashboard");
+      return { success: true, question: serializeQuestion(question) };
+    } else {
+      // If not the owner, we successfully updated user progress via RevisionRecord
+      const question = await db.question.findUnique({ where: { id } });
+      
+      revalidatePath("/technologies");
+      revalidatePath("/revision");
+      revalidatePath("/dashboard");
+      return { success: true, question: serializeQuestion(question) };
+    }
   } catch (error: any) {
     console.error("Update question error:", error);
     return { error: `Failed to update question: ${error?.message || error}` };
@@ -359,16 +444,39 @@ export async function getSavedQuestions() {
           user: {
             select: { name: true, email: true },
           },
+          revisionRecords: {
+            where: { userId: session.user.id },
+            orderBy: { revisedAt: "desc" },
+          },
         },
       },
     },
   });
 
-  return bookmarks.map((b) => ({
-    bookmarkId: b.id,
-    bookmarkedAt: b.createdAt,
-    ...b.question,
-  }));
+  return bookmarks.map((b) => {
+    const q = b.question;
+    const records = q.revisionRecords || [];
+    let dynamicStatus = "NOT_STARTED";
+    if (records.length > 0) {
+      const latest = records[0];
+      if (latest.quality === 5) {
+        dynamicStatus = "MASTERED";
+      } else {
+        const reps = records.filter((r: any) => r.quality >= 3).length;
+        if (reps > 1) {
+          dynamicStatus = "REVISED_ONCE";
+        } else {
+          dynamicStatus = "LEARNING";
+        }
+      }
+    }
+    return {
+      bookmarkId: b.id,
+      bookmarkedAt: b.createdAt,
+      ...q,
+      revisionStatus: dynamicStatus,
+    };
+  });
 }
 
 export async function moveQuestionToTechnology(questionId: string, targetTechId: string) {

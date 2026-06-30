@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import DashboardClient from "./DashboardClient";
+import { getLatestResumeAnalysisForDashboard } from "@/actions/resume";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -19,9 +20,14 @@ export default async function DashboardPage() {
   });
   const userName = user?.name || session.user.name || "User";
 
-  // 2. Fetch technologies and questions
-  const technologies = await db.technology.findMany({
-    where: { userId },
+  // 2. Fetch technologies (Personal and Global template technologies)
+  const allTechs = await db.technology.findMany({
+    where: {
+      OR: [
+        { userId },
+        { isGlobalTemplate: true }
+      ]
+    },
     include: {
       questions: {
         select: {
@@ -30,9 +36,10 @@ export default async function DashboardPage() {
           revisionStatus: true,
           createdAt: true,
           revisionRecords: {
+            where: { userId },
             orderBy: { revisedAt: "desc" },
-            take: 1,
             select: {
+              quality: true,
               nextReviewAt: true,
               revisedAt: true,
             },
@@ -41,6 +48,42 @@ export default async function DashboardPage() {
       },
     },
     orderBy: { order: "asc" },
+  });
+
+  // Filter out Official technologies if the user has already created a personal copy of it
+  const personalTechs = allTechs.filter(t => t.userId === userId);
+  const clonedTemplateIds = new Set(
+    personalTechs.filter(t => t.sourceTemplateId).map(t => t.sourceTemplateId)
+  );
+
+  const technologies = allTechs.filter(t => {
+    if (t.userId === userId) return true;
+    return !clonedTemplateIds.has(t.id);
+  });
+
+  // Dynamically set revisionStatus for each question in each tech based on user's revisionRecords
+  technologies.forEach((tech) => {
+    tech.questions = tech.questions.map((q: any) => {
+      const records = q.revisionRecords || [];
+      let dynamicStatus = "NOT_STARTED";
+      if (records.length > 0) {
+        const latest = records[0];
+        if (latest.quality === 5) {
+          dynamicStatus = "MASTERED";
+        } else {
+          const reps = records.filter((r: any) => r.quality >= 3).length;
+          if (reps > 1) {
+            dynamicStatus = "REVISED_ONCE";
+          } else {
+            dynamicStatus = "LEARNING";
+          }
+        }
+      }
+      return {
+        ...q,
+        revisionStatus: dynamicStatus,
+      };
+    });
   });
 
   const now = new Date();
@@ -55,6 +98,7 @@ export default async function DashboardPage() {
   let dueCount = 0;
   let overdueCount = 0;
   let totalReadinessScoreSum = 0;
+  let masteredCount = 0;
 
   const statusWeights = {
     NOT_STARTED: 0,
@@ -67,11 +111,12 @@ export default async function DashboardPage() {
     const total = tech.questions.length;
     const mastered = tech.questions.filter(q => q.revisionStatus === "MASTERED").length;
 
+    masteredCount += mastered;
     totalQuestionsCount += total;
 
     tech.questions.forEach((q) => {
       // readiness score
-      const weight = statusWeights[q.revisionStatus] || 0;
+      const weight = statusWeights[q.revisionStatus as keyof typeof statusWeights] || 0;
       totalReadinessScoreSum += weight;
 
       // due check
@@ -286,7 +331,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Questions Revised",
-      value: totalRevisions,
+      value: masteredCount,
       color: "from-emerald-500 to-emerald-600",
       change: `+${revisionsToday} today`,
     },
@@ -311,6 +356,9 @@ export default async function DashboardPage() {
     },
   ];
 
+  // 7. Latest resume analysis for dashboard widget
+  const resumeScore = await getLatestResumeAnalysisForDashboard();
+
   return (
     <DashboardClient
       userName={userName}
@@ -319,6 +367,7 @@ export default async function DashboardPage() {
       recentActivity={recentActivity}
       dueCount={dueCount}
       weeks={weeks}
+      resumeScore={resumeScore ? { atsScore: resumeScore.atsScore, createdAt: resumeScore.createdAt.toISOString() } : null}
     />
   );
 }

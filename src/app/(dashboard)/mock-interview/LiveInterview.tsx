@@ -1,30 +1,18 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Play, CheckCircle, AlertTriangle, ArrowRight, Loader2, Sparkles, X } from "lucide-react";
+import { Mic, MicOff, AlertTriangle, ArrowRight, Loader2, X } from "lucide-react";
 import { GlassCard } from "@/components/shared";
 import { submitAnswer, finishMockInterview } from "@/actions/mockInterviews";
 import { toast } from "sonner";
-import { db } from "@/lib/db"; // wait, this is client side, we'll fetch via api or pass via server page.
-
-// Since this is a client component, let's create a server page wrapper or just fetch data via a simple client-side load.
-// Wait, we can fetch the interview data in a wrapper and pass it to this component!
-// Let's first write the client component, let's call it LiveInterview.
 
 interface Question {
   id: string;
   question: string;
   order: number;
   userAnswer: string | null;
-}
-
-interface Interview {
-  id: string;
-  technology: string;
-  difficulty: string;
-  questions: Question[];
 }
 
 export default function LiveInterview({ interview, initialQuestions }: { interview: any; initialQuestions: any[] }) {
@@ -34,55 +22,107 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
   const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes per question
+  const [timeRemaining, setTimeRemaining] = useState(300);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const currentQuestion = initialQuestions[currentIdx];
 
+  // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Timer
     if (timeRemaining <= 0) {
       handleNext();
       return;
     }
-    const timer = setInterval(() => {
-      setTimeRemaining((prev) => prev - 1);
-    }, 1000);
+    const timer = setInterval(() => setTimeRemaining((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeRemaining, currentIdx]);
 
   useEffect(() => {
-    setTimeRemaining(300); // reset timer for new question
+    setTimeRemaining(300);
+  }, [currentIdx]);
+
+  // ── Stop recognition when question changes or component unmounts ───────────
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
   }, [currentIdx]);
 
   const handleTextChange = (text: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: text,
-    }));
+    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: text }));
   };
 
+  // ── Real Web Speech API dictation ──────────────────────────────────────────
   const handleRecordingToggle = () => {
-    setIsRecording(!isRecording);
-    if (!isRecording) {
-      toast.info("Voice input started. (Simulated - Type your answer or speak)");
-      // Simulate speech-to-text
-      setTimeout(() => {
-        if (isRecording) return;
-        const currentAns = answers[currentQuestion.id] || "";
-        handleTextChange(currentAns + (currentAns ? " " : "") + "This is a simulated speech-to-text transcript of the answer for " + interview.technology + " interview.");
-      }, 3000);
-    } else {
-      toast.success("Voice input saved.");
+    // Check browser support
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error("Voice dictation is not supported in your browser. Please use Chrome or Edge.");
+      return;
     }
+
+    if (isRecording) {
+      // Stop recording
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    // Start recording
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = true;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast.info("Listening… speak your answer clearly.");
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join(" ");
+
+      setAnswers((prev) => {
+        const existing = prev[currentQuestion.id] || "";
+        const separator = existing.trim() ? " " : "";
+        return { ...prev, [currentQuestion.id]: existing + separator + transcript };
+      });
+    };
+
+    recognition.onerror = (event: any) => {
+      setIsRecording(false);
+      if (event.error === "not-allowed" || event.error === "permission-denied") {
+        toast.error("Microphone access denied. Please allow microphone permissions and try again.");
+      } else if (event.error !== "no-speech" && event.error !== "aborted") {
+        toast.error(`Voice recognition error: ${event.error}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
+  // ── Submit / navigation ────────────────────────────────────────────────────
   const handleNext = async () => {
     const answer = answers[currentQuestion.id] || "";
     if (!answer.trim()) {
       toast.warning("Please provide an answer before proceeding.");
       return;
     }
+
+    // Stop any active recording before submitting
+    recognitionRef.current?.stop();
+    setIsRecording(false);
 
     setSubmitting(true);
     try {
@@ -92,13 +132,12 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
         return;
       }
       toast.success("Answer submitted successfully!");
-      
       if (currentIdx < initialQuestions.length - 1) {
         setCurrentIdx((prev) => prev + 1);
       } else {
         handleFinish();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to submit answer");
     } finally {
       setSubmitting(false);
@@ -115,7 +154,7 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
       }
       toast.success("Interview completed! Generating feedback...");
       router.push(`/mock-interview/${interview.id}/results`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to complete interview");
     } finally {
       setLoading(false);
@@ -155,7 +194,7 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
 
       <GlassCard className="p-8 relative overflow-hidden min-h-[400px] flex flex-col justify-between">
         <div className="absolute top-0 right-0 w-48 h-48 gradient-bg opacity-5 rounded-full blur-3xl" />
-        
+
         <div>
           <h2 className="text-xl font-semibold leading-relaxed mb-6">
             {currentQuestion.question}
@@ -174,8 +213,8 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
           <button
             onClick={handleRecordingToggle}
             className={`w-full sm:w-auto justify-center p-4 rounded-xl border transition-all flex items-center gap-2 font-medium ${
-              isRecording 
-                ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30" 
+              isRecording
+                ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30"
                 : "border-border glass hover:bg-muted text-muted-foreground"
             }`}
             disabled={submitting || loading}

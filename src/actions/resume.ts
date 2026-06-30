@@ -272,19 +272,8 @@ export async function parseResumeAndSetupWorkspaces(fileUrl: string, fileName: s
       },
     });
 
-    // 2. Parse text with Gemini (with fallback)
-    let parsed: AIParsedResume | null = null;
-    try {
-      const prompt = buildResumeParsingPrompt(rawText);
-      parsed = await generateStructuredOutput<AIParsedResume>(prompt);
-    } catch (apiError) {
-      console.warn("Gemini resume parsing failed, using fallback parser:", apiError);
-      parsed = fallbackResumeParser(rawText);
-    }
-
-    if (!parsed) {
-      return { error: "Failed to parse resume technical skills" };
-    }
+    // Use local text parser only — saves AI quota for the actual analysis step
+    const parsed: AIParsedResume | null = fallbackResumeParser(rawText);
 
     // 3. Flatten skills to insert into DB
     const skillsToCreate: { name: string; category: string; resumeId: string }[] = [];
@@ -325,66 +314,15 @@ export async function parseResumeAndSetupWorkspaces(fileUrl: string, fileName: s
       data: { parsedAt: new Date() },
     });
 
-    // 5. Automatically create technology workspaces for the top extracted skills (limit to top 6 to prevent timeouts/overwhelm)
-    const topSkills = allSkillNames.slice(0, 6);
-    
-    for (const skillName of topSkills) {
-      // Create technology workspace
-      const techResult = await createTechnology(skillName, `Personalized workspace for ${skillName} interview preparation.`);
-      
-      if (techResult.success && techResult.technology) {
-        const techId = techResult.technology.id;
-        
-        // Generate initial questions (with fallback if AI fails)
-        try {
-          const qPrompt = buildQuestionGenerationPrompt(skillName, 5); // Start with 5 questions
-          const qParsed = await generateStructuredOutput<AIParsedQuestions>(qPrompt);
-          
-          if (qParsed && qParsed.questions) {
-            for (const q of qParsed.questions) {
-              await createQuestion({
-                title: q.title,
-                answer: q.answer,
-                codeExample: q.codeExample || undefined,
-                codeLanguage: q.codeLanguage || undefined,
-                difficulty: q.difficulty,
-                interviewFrequency: q.interviewFrequency,
-                tags: q.tags,
-                technologyId: techId,
-              });
-            }
-          }
-        } catch (qErr) {
-          console.warn(`Error generating questions for ${skillName}, using fallback questions:`, qErr);
-          try {
-            const fallbackQ = getFallbackQuestions(skillName);
-            for (const q of fallbackQ.questions) {
-              await createQuestion({
-                title: q.title,
-                answer: q.answer,
-                codeExample: q.codeExample || undefined,
-                codeLanguage: q.codeLanguage || undefined,
-                difficulty: q.difficulty,
-                interviewFrequency: q.interviewFrequency,
-                tags: q.tags,
-                technologyId: techId,
-              });
-            }
-          } catch (innerErr) {
-            console.error(`Error writing fallback questions for ${skillName}:`, innerErr);
-          }
-        }
-      }
-    }
-
     revalidatePath("/dashboard");
     revalidatePath("/technologies");
     revalidatePath("/settings");
 
-    return { success: true, skillsCount: allSkillNames.length, workspacesCreated: topSkills.length };
-  } catch (error) {
-    console.error("Parse resume error:", error);
-    return { error: "Failed to parse resume and build workspaces" };
+    return { success: true, resumeId: resume.id, skillsCount: allSkillNames.length, workspacesCreated: 0 };
+  } catch (error: any) {
+    const errMsg = error?.message || String(error);
+    console.error("Parse resume error:", errMsg, error);
+    return { error: `Failed to parse resume: ${errMsg}` };
   }
 }
 
@@ -411,3 +349,184 @@ export async function deleteResume(resumeId: string) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// AI Resume Analyzer — New Actions
+// ═══════════════════════════════════════════════════════════
+
+export interface ResumeAnalysisResult {
+  id: string;
+  resumeId: string;
+  userId: string;
+  atsScore: number;
+  sectionScores: {
+    technical: number;
+    projects: number;
+    experience: number;
+    education: number;
+    formatting: number;
+    readability: number;
+    grammar: number;
+    keywords: number;
+    recruiterAppeal: number;
+  };
+  summary: string;
+  missingKeywords: { keyword: string; reason: string }[];
+  grammarIssues: { original: string; suggestion: string; type: string }[];
+  actionVerbs: { weak: string; strong: string; reason: string }[];
+  bulletPoints: { original: string; improved: string }[];
+  projectAnalysis: { name: string; score: number; suggestions: string[] }[];
+  recruiterFeedback: string[];
+  formattingTips: string[];
+  skillCategories: {
+    languages: string[];
+    frameworks: string[];
+    libraries: string[];
+    databases: string[];
+    cloud: string[];
+    tools: string[];
+    versionControl: string[];
+    testing: string[];
+  };
+  candidateName: string | null;
+  candidateEmail: string | null;
+  candidatePhone: string | null;
+  createdAt: Date;
+}
+
+/**
+ * Run AI analysis on a resume and store the result.
+ * Called automatically after parseResumeAndSetupWorkspaces succeeds.
+ */
+export async function analyzeResumeWithAI(resumeId: string, rawText: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Unauthorized" };
+  }
+
+  // Verify the resume belongs to this user
+  const resume = await db.resume.findFirst({
+    where: { id: resumeId, userId: session.user.id },
+  });
+  if (!resume) {
+    return { error: "Resume not found" };
+  }
+
+  if (!rawText || rawText.trim().length < 50) {
+    return { error: "Resume text is too short to analyze" };
+  }
+
+  try {
+    const { buildResumeAnalysisPrompt } = await import("@/lib/ai");
+    const prompt = buildResumeAnalysisPrompt(rawText);
+
+    let aiResult: any = null;
+    try {
+      const { generateStructuredOutput } = await import("@/lib/ai");
+      aiResult = await generateStructuredOutput<any>(prompt, { usePro: false });
+    } catch (aiErr) {
+      console.error("AI resume analysis failed:", aiErr);
+      return { error: "AI analysis failed. Please check your API key and try again." };
+    }
+
+    if (!aiResult || typeof aiResult.atsScore !== "number") {
+      return { error: "AI returned an invalid analysis format." };
+    }
+
+    // Clamp atsScore to 0-100
+    const atsScore = Math.max(0, Math.min(100, Math.round(aiResult.atsScore)));
+
+    // Clamp all section scores
+    const rawSections = aiResult.sectionScores || {};
+    const sectionScores = {
+      technical: Math.max(0, Math.min(100, Math.round(rawSections.technical ?? 50))),
+      projects: Math.max(0, Math.min(100, Math.round(rawSections.projects ?? 50))),
+      experience: Math.max(0, Math.min(100, Math.round(rawSections.experience ?? 50))),
+      education: Math.max(0, Math.min(100, Math.round(rawSections.education ?? 50))),
+      formatting: Math.max(0, Math.min(100, Math.round(rawSections.formatting ?? 50))),
+      readability: Math.max(0, Math.min(100, Math.round(rawSections.readability ?? 50))),
+      grammar: Math.max(0, Math.min(100, Math.round(rawSections.grammar ?? 50))),
+      keywords: Math.max(0, Math.min(100, Math.round(rawSections.keywords ?? 50))),
+      recruiterAppeal: Math.max(0, Math.min(100, Math.round(rawSections.recruiterAppeal ?? 50))),
+    };
+
+    const analysis = await db.resumeAnalysis.create({
+      data: {
+        resumeId,
+        userId: session.user.id,
+        atsScore,
+        sectionScores,
+        summary: aiResult.summary || "",
+        missingKeywords: Array.isArray(aiResult.missingKeywords) ? aiResult.missingKeywords : [],
+        grammarIssues: Array.isArray(aiResult.grammarIssues) ? aiResult.grammarIssues : [],
+        actionVerbs: Array.isArray(aiResult.actionVerbs) ? aiResult.actionVerbs : [],
+        bulletPoints: Array.isArray(aiResult.bulletPoints) ? aiResult.bulletPoints : [],
+        projectAnalysis: Array.isArray(aiResult.projectAnalysis) ? aiResult.projectAnalysis : [],
+        recruiterFeedback: Array.isArray(aiResult.recruiterFeedback) ? aiResult.recruiterFeedback : [],
+        formattingTips: Array.isArray(aiResult.formattingTips) ? aiResult.formattingTips : [],
+        skillCategories: aiResult.skillCategories || {},
+        candidateName: aiResult.candidateName || null,
+        candidateEmail: aiResult.candidateEmail || null,
+        candidatePhone: aiResult.candidatePhone || null,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/resume-analyzer");
+
+    return { success: true, analysisId: analysis.id, atsScore };
+  } catch (error) {
+    console.error("Resume analysis error:", error);
+    return { error: "Failed to analyze resume" };
+  }
+}
+
+/**
+ * Get the latest analysis for a specific resume
+ */
+export async function getResumeAnalysis(resumeId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const analysis = await db.resumeAnalysis.findFirst({
+    where: { resumeId, userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return { analysis };
+}
+
+/**
+ * Get all analyses for the current user (version history)
+ */
+export async function getAllResumeAnalyses() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const analyses = await db.resumeAnalysis.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    include: {
+      resume: {
+        select: { fileName: true },
+      },
+    },
+  });
+
+  return { analyses };
+}
+
+/**
+ * Get just the latest ATS score + date for the dashboard widget
+ */
+export async function getLatestResumeAnalysisForDashboard() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const analysis = await db.resumeAnalysis.findFirst({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    select: { atsScore: true, createdAt: true, id: true },
+  });
+
+  return analysis;
+}

@@ -20,6 +20,7 @@ import {
   X,
   Info,
   LogOut,
+  FileSearch,
 } from "lucide-react";
 import { Logo } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Technologies", href: "/technologies", icon: Code2 },
+  { label: "Resume Analyzer", href: "/resume-analyzer", icon: FileSearch },
   { label: "Mock Interview", href: "/mock-interview", icon: Mic },
   { label: "Community", href: "/community", icon: Users },
   { label: "Saved", href: "/saved", icon: Bookmark },

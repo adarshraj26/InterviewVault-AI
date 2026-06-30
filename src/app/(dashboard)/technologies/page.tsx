@@ -351,9 +351,7 @@ export default function TechnologiesPage() {
               <motion.div variants={staggerContainer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {templateTechs.map((tech) => {
                   const questionsCount = tech.questions.length;
-                  const masteredCount = tech.userId === session?.user?.id
-                    ? tech.questions.filter((q) => q.revisionStatus === "MASTERED").length
-                    : 0;
+                  const masteredCount = tech.questions.filter((q) => q.revisionStatus === "MASTERED").length;
                   const progress = questionsCount > 0 ? Math.round((masteredCount / questionsCount) * 100) : 0;
                   const icon = TECH_ICONS[tech.name.toLowerCase()] || "📦";
                   const isToggling = togglingTemplateId === tech.id;

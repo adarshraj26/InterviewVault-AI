@@ -39,7 +39,19 @@ export async function getTechnologies() {
     orderBy: { order: "asc" },
     include: {
       questions: {
-        select: { revisionStatus: true, userId: true },
+        select: {
+          id: true,
+          revisionStatus: true,
+          userId: true,
+          revisionRecords: {
+            where: { userId },
+            select: { quality: true },
+          },
+          bookmarks: {
+            where: { userId },
+            select: { id: true },
+          },
+        },
       },
     },
   });
@@ -59,7 +71,34 @@ export async function getTechnologies() {
     return !clonedTemplateIds.has(t.id);
   });
 
-  return result;
+  // Map and dynamically set revisionStatus for each question in each tech based on user's revisionRecords
+  return result.map((t) => {
+    const updatedQuestions = t.questions.map((q) => {
+      const records = q.revisionRecords || [];
+      let dynamicStatus = "NOT_STARTED";
+      if (records.length > 0) {
+        const latest = records[0];
+        if (latest.quality === 5) {
+          dynamicStatus = "MASTERED";
+        } else {
+          const reps = records.filter((r: any) => r.quality >= 3).length;
+          if (reps > 1) {
+            dynamicStatus = "REVISED_ONCE";
+          } else {
+            dynamicStatus = "LEARNING";
+          }
+        }
+      }
+      return {
+        ...q,
+        revisionStatus: dynamicStatus,
+      };
+    });
+    return {
+      ...t,
+      questions: updatedQuestions,
+    };
+  });
 }
 
 export async function getTechnologyBySlug(slug: string) {
@@ -68,26 +107,31 @@ export async function getTechnologyBySlug(slug: string) {
     throw new Error("Unauthorized");
   }
 
+  const userId = session.user.id;
+
   // 1. Try to find the user's personal copy first
   let tech = await db.technology.findFirst({
     where: {
-      userId: session.user.id,
+      userId,
       slug,
     },
     include: {
       questions: {
-        where: { userId: session.user.id },
+        where: { userId },
         orderBy: { createdAt: "asc" },
         include: {
           revisionRecords: {
-            where: { userId: session.user.id },
+            where: { userId },
             orderBy: { revisedAt: "desc" },
-            take: 1,
+          },
+          bookmarks: {
+            where: { userId },
+            select: { id: true },
           },
         },
       },
       notes: {
-        where: { userId: session.user.id },
+        where: { userId },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -103,12 +147,49 @@ export async function getTechnologyBySlug(slug: string) {
       include: {
         questions: {
           orderBy: { createdAt: "asc" },
-          // We must NOT fetch revision records for global questions since they belong to admin
-          // Users cannot have revision records on questions they don't own
+          include: {
+            revisionRecords: {
+              where: { userId },
+              orderBy: { revisedAt: "desc" },
+            },
+            bookmarks: {
+              where: { userId },
+              select: { id: true },
+            },
+          },
         },
         // We do not fetch notes for global templates since notes are personal
       },
     }) as any;
+  }
+
+  // Calculate dynamic user-specific status for each question
+  if (tech) {
+    const updatedQuestions = tech.questions.map((q: any) => {
+      const records = q.revisionRecords || [];
+      let dynamicStatus = "NOT_STARTED";
+      if (records.length > 0) {
+        const latest = records[0];
+        if (latest.quality === 5) {
+          dynamicStatus = "MASTERED";
+        } else {
+          const reps = records.filter((r: any) => r.quality >= 3).length;
+          if (reps > 1) {
+            dynamicStatus = "REVISED_ONCE";
+          } else {
+            dynamicStatus = "LEARNING";
+          }
+        }
+      }
+      return {
+        ...q,
+        revisionStatus: dynamicStatus,
+      };
+    });
+    return {
+      ...tech,
+      questions: updatedQuestions,
+    };
   }
 
   return tech;

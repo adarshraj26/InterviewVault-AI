@@ -66,6 +66,7 @@ model User {
   sessions       Session[]
 
   resumes        Resume[]
+  resumeAnalyses ResumeAnalysis[]
   technologies   Technology[]
   questions      Question[]
   mockInterviews MockInterview[]
@@ -132,6 +133,7 @@ model Resume {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   skills    Skill[]
+  analyses  ResumeAnalysis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -363,4 +365,47 @@ model AICredit {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ── Resume Analyzer ─────────────────────────────────────────
+
+model ResumeAnalysis {
+  id               String   @id @default(cuid())
+
+  resumeId         String
+  resume           Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ATS Score (0–100)
+  atsScore         Int
+
+  // Per-section scores stored as JSON
+  // Shape: { technical, projects, experience, education, formatting, readability, grammar, keywords, recruiterAppeal }
+  sectionScores    Json
+
+  // AI-generated text content
+  summary          String   @db.Text
+
+  // JSON arrays (see action types for shape)
+  missingKeywords  Json     // [{ keyword: string, reason: string }]
+  grammarIssues    Json     // [{ original: string, suggestion: string, type: string }]
+  actionVerbs      Json     // [{ weak: string, strong: string, reason: string }]
+  bulletPoints     Json     // [{ original: string, improved: string }]
+  projectAnalysis  Json     // [{ name: string, score: number, suggestions: string[] }]
+  recruiterFeedback Json    // string[]
+  formattingTips   Json     // string[]
+  skillCategories  Json     // { languages, frameworks, libraries, databases, cloud, tools, versionControl, testing }
+
+  // Parsed contact info
+  candidateName    String?
+  candidateEmail   String?
+  candidatePhone   String?
+
+  createdAt        DateTime @default(now())
+
+  @@index([resumeId])
+  @@index([userId])
+  @@index([createdAt])
 }

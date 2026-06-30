@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mic, Play, ChevronRight, Trophy, Loader2 } from "lucide-react";
+import { Mic, Play, ChevronRight, Loader2 } from "lucide-react";
 import { GlassCard } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { startMockInterview } from "@/actions/mockInterviews";
@@ -17,16 +17,7 @@ const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } }
 interface Tech {
   id: string;
   name: string;
-}
-
-interface Interview {
-  id: string;
-  technology: string;
-  difficulty: string;
-  score: number | null;
-  totalQuestions: number;
-  createdAt: Date;
-  completedAt: Date | null;
+  isGlobal?: boolean;
 }
 
 export default function MockInterviewDashboard({ 
@@ -84,9 +75,17 @@ export default function MockInterviewDashboard({
             <div className="mb-6">
               <label className="block text-sm font-medium mb-3">Select Technology</label>
               {technologies.length === 0 ? (
-                <p className="text-sm text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
-                  Please upload your resume in Settings or add technologies first to customize your workspaces.
-                </p>
+                <div className="text-sm bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 space-y-2">
+                  <p className="text-yellow-500 font-semibold">No technologies available yet.</p>
+                  <p className="text-muted-foreground">
+                    To unlock the mock interview, do any of the following:
+                  </p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-1 mt-1">
+                    <li>Upload your resume in <strong>Settings</strong> to auto-extract technologies</li>
+                    <li>Manually add a technology in the <strong>Tech-Stacks</strong> section</li>
+                    <li>Ask your admin to mark a technology as <strong>Global</strong></li>
+                  </ul>
+                </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {technologies.map((tech) => (

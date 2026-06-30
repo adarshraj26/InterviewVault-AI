@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { GlassCard } from "@/components/shared";
 import { Trophy, ArrowLeft, CheckCircle2, AlertCircle, TrendingUp, Sparkles, MessageSquare } from "lucide-react";
+import { MarkdownRenderer } from "@/components/shared/markdown-renderer";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -179,9 +180,9 @@ export default async function MockInterviewResultsPage({ params }: PageProps) {
 
               <div className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-green-500 block">AI Expected Answer:</span>
-                <p className="text-sm bg-green-500/5 p-4 rounded-xl border border-green-500/10 text-muted-foreground min-h-[80px] leading-relaxed">
-                  {q.expectedAnswer}
-                </p>
+                <div className="text-sm bg-green-500/5 p-4 rounded-xl border border-green-500/10 text-muted-foreground min-h-[80px] leading-relaxed">
+                  <MarkdownRenderer content={q.expectedAnswer || ""} />
+                </div>
               </div>
             </div>
 

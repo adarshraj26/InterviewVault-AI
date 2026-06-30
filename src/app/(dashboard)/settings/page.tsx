@@ -23,30 +23,10 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  // Fetch active resume
-  const activeResume = await db.resume.findFirst({
-    where: { user: { email: session.user.email } },
-    orderBy: { createdAt: "desc" },
-    include: {
-      skills: {
-        select: { name: true },
-      },
-    },
-  });
-
   return (
     <div className="container py-8">
       <SettingsForm 
         user={dbUser} 
-        activeResume={activeResume ? {
-          id: activeResume.id,
-          fileName: activeResume.fileName,
-          fileSize: activeResume.fileSize,
-          parsedAt: activeResume.parsedAt,
-          createdAt: activeResume.createdAt,
-          skills: activeResume.skills,
-          rawText: activeResume.rawText,
-        } : null} 
       />
     </div>
   );

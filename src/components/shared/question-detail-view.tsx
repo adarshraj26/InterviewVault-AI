@@ -23,7 +23,7 @@ import { cn, stripMarkdown } from "@/lib/utils";
 import { MarkdownRenderer, extractToc, isMarkdownContent } from "./markdown-renderer";
 import { ShareBar, ShareModal } from "./share-modal";
 import { Footer } from "@/components/shared";
-import { updateQuestion } from "@/actions/questions";
+import { updateQuestion, toggleBookmarkQuestion } from "@/actions/questions";
 import { saveToMyVault } from "@/actions/ownership";
 import { toast } from "sonner";
 
@@ -44,6 +44,7 @@ interface QuestionDetailViewProps {
     isPublic?: boolean;
     isGlobal?: boolean;
     revisionStatus?: string;
+    bookmarks?: any[];
   };
   technologyName: string;
   allQuestions?: any[];
@@ -75,12 +76,20 @@ export function QuestionDetailView({
 }: QuestionDetailViewProps) {
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
   const [isDone, setIsDone] = useState(question.revisionStatus === "MASTERED");
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(
+    Array.isArray(question.bookmarks) && question.bookmarks.length > 0
+  );
   const [savingToVault, setSavingToVault] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [activeHeadingId, setActiveHeadingId] = useState<string>("");
   const [showMobileToc, setShowMobileToc] = useState(false);
   const tocSidebarRef = useRef<HTMLElement>(null);
+
+  // Sync state if question prop changes
+  useEffect(() => {
+    setIsSaved(Array.isArray(question.bookmarks) && question.bookmarks.length > 0);
+    setIsDone(question.revisionStatus === "MASTERED");
+  }, [question]);
 
   const answerContent = question.answer || "";
   const isMarkdown = isMarkdownContent(answerContent);
@@ -110,6 +119,26 @@ export function QuestionDetailView({
 
     startTransition(async () => {
       await updateQuestion(question.id, { revisionStatus: updatedStatus });
+    });
+  };
+
+  const handleToggleSaved = () => {
+    const newIsSaved = !isSaved;
+    setIsSaved(newIsSaved);
+
+    const updatedBookmarks = newIsSaved ? [{ id: "temp" }] : [];
+    if (onUpdateQuestion) {
+      onUpdateQuestion({ ...question, bookmarks: updatedBookmarks });
+    }
+
+    startTransition(async () => {
+      const res = await toggleBookmarkQuestion(question.id);
+      if (res.error) {
+        toast.error(res.error);
+        setIsSaved(!newIsSaved); // Revert on failure
+      } else {
+        toast.success(newIsSaved ? "Marked as important!" : "Removed from important.");
+      }
     });
   };
 
@@ -271,7 +300,7 @@ export function QuestionDetailView({
 
       {/* Content Area */}
       <div id="question-scroll-container" className="flex-1 overflow-y-auto relative scroll-smooth">
-        <div className="max-w-7xl mx-auto pl-0 pr-4 md:pr-6 pt-8 pb-16">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 pt-8 pb-16">
           <div className="flex gap-12 lg:gap-20 items-start justify-center max-w-[1400px] mx-auto">
             {/* Dynamic Premium Guide Navigation (Left Side) */}
             {toc.length > 0 && (
@@ -403,6 +432,21 @@ export function QuestionDetailView({
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleToggleSaved}
+                      disabled={isPending}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                        isSaved
+                          ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                          : "bg-black/20 border-border/50 text-foreground hover:bg-muted"
+                      )}
+                      title={isSaved ? "Remove from important" : "Mark as important"}
+                    >
+                      <Bookmark className={cn("h-4 w-4", isSaved && "fill-current")} />
+                      {isSaved ? "Important" : "Mark as Important"}
+                    </button>
+
                     {/* All questions are user-owned now — always show progress tracking */}
                     <button
                       onClick={handleToggleDone}

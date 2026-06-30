@@ -12,7 +12,7 @@ import {
   Sparkles,
   TrendingUp,
   BookOpen,
-  Upload,
+  FileSearch,
 } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, AnimatedCounter } from "@/components/shared";
@@ -67,6 +67,7 @@ interface DashboardClientProps {
   recentActivity: ActivityItem[];
   dueCount: number;
   weeks: { date: string; count: number }[][];
+  resumeScore: { atsScore: number; createdAt: string } | null;
 }
 
 function getHeatmapColor(count: number): string {
@@ -84,6 +85,7 @@ export default function DashboardClient({
   recentActivity,
   dueCount,
   weeks,
+  resumeScore,
 }: DashboardClientProps) {
   return (
     <motion.div
@@ -101,16 +103,6 @@ export default function DashboardClient({
           <p className="text-muted-foreground mt-1">
             You have <span className="text-primary font-medium">{dueCount} questions</span> due for review today.
           </p>
-        </div>
-        <div className="flex gap-3">
-
-          <Link
-            href="/settings"
-            className="flex items-center gap-2 gradient-bg text-white px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/25 text-sm font-medium cursor-pointer"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Resume
-          </Link>
         </div>
       </motion.div>
 
@@ -150,6 +142,47 @@ export default function DashboardClient({
           );
         })}
       </motion.div>
+
+      {/* ── Resume Score Widget ───────────────────────────── */}
+      {resumeScore && (
+        <motion.div variants={fadeInUp}>
+          <Link href="/resume-analyzer">
+            <GlassCard hover className="bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-500/20 cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <svg width="56" height="56" className="-rotate-90">
+                      <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+                      <circle
+                        cx="28" cy="28" r="22"
+                        fill="none"
+                        stroke={resumeScore.atsScore >= 90 ? "#10b981" : resumeScore.atsScore >= 70 ? "#f59e0b" : "#ef4444"}
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(resumeScore.atsScore / 100) * 138.2} 138.2`}
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-black">{resumeScore.atsScore}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Resume Score</p>
+                    <p className="text-xl font-bold">{resumeScore.atsScore} / 100</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Analyzed {new Date(resumeScore.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+                    <FileSearch className="h-5 w-5 text-white" />
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            </GlassCard>
+          </Link>
+        </motion.div>
+      )}
 
       {/* ── Middle Row: Tech Progress + Activity ─────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
