@@ -58,10 +58,25 @@ export function truncate(text: string, length: number): string {
 export function stripMarkdown(text: string): string {
   if (!text) return "";
   return text
-    .replace(/```[\s\S]*?```/g, "") // Remove code blocks entirely
-    .replace(/<[^>]*>/g, "") // Remove HTML tags
-    .replace(/[#*`~_\[\]>]/g, "") // Remove Markdown characters
-    .replace(/\s+/g, " ") // Normalize whitespace
+    // Custom directives — strip block markers and labels
+    .replace(/^:::\w*[\w-]*\s*\n?/gm, "")          // Opening ::: lines
+    .replace(/^:::$/gm, "")                          // Closing ::: lines
+    // Highlighted text ==word== → word
+    .replace(/==([^=]+)==/g, "$1")
+    // Frequency / Difficulty badge lines
+    .replace(/^(Frequency|Difficulty):\s*.+$/gm, "")
+    // Tags keyword line
+    .replace(/^Tags?\s*$/gim, "")
+    // Code blocks
+    .replace(/```[\s\S]*?```/g, "")
+    // HTML tags
+    .replace(/<[^>]*>/g, "")
+    // Markdown headings, bold, italic, inline code, blockquotes, etc.
+    .replace(/[#*`~_\[\]>]/g, "")
+    // Horizontal rules
+    .replace(/^---+$/gm, "")
+    // Normalize whitespace
+    .replace(/\s+/g, " ")
     .trim();
 }
 

@@ -11,6 +11,7 @@ import Link from "next/link";
 interface NavbarProps {
   onMenuClick: () => void;
   sidebarCollapsed: boolean;
+  onSearchClick?: () => void;
 }
 
 interface NotificationItem {
@@ -22,7 +23,7 @@ interface NotificationItem {
   type: "info" | "success" | "warning";
 }
 
-export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
+export function Navbar({ onMenuClick, sidebarCollapsed, onSearchClick }: NavbarProps) {
   const { data: session } = useSession();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -117,21 +118,24 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
 
           {/* Search Bar */}
           <div className="hidden sm:flex items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div 
+              onClick={onSearchClick}
+              className="relative cursor-pointer group"
+            >
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               <input
                 id="global-search"
                 type="text"
+                readOnly
                 placeholder="Search questions, technologies..."
                 className={cn(
-                  "w-[280px] lg:w-[360px] rounded-xl border border-border bg-muted/50",
-                  "pl-10 pr-4 py-2 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card",
+                  "w-[280px] lg:w-[360px] rounded-xl border border-border bg-muted/50 pl-10 pr-16 py-2 text-sm cursor-pointer",
+                  "focus:outline-none focus:ring-1 focus:ring-border",
                   "placeholder:text-muted-foreground/50",
                   "transition-all duration-200"
                 )}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-1 text-[10px] text-muted-foreground">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-1 text-[10px] text-muted-foreground select-none pointer-events-none">
                 <kbd className="px-1.5 py-0.5 rounded border border-border bg-card font-mono">⌘</kbd>
                 <kbd className="px-1.5 py-0.5 rounded border border-border bg-card font-mono">K</kbd>
               </div>
@@ -142,9 +146,13 @@ export function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           {/* Mobile search */}
-          <button className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+          <button 
+            onClick={onSearchClick}
+            className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+          >
             <Search className="h-5 w-5 text-muted-foreground" />
           </button>
+
 
           {/* Notifications Container */}
           <div className="relative flex items-center" ref={dropdownRef}>

@@ -362,7 +362,7 @@ For each genuine question, extract:
 - codeLanguage: The programming language for the code example (e.g. "javascript", "typescript", "python", "sql") or null if none
 - difficulty: The difficulty level. Must be one of: "EASY", "MEDIUM", or "HARD"
 - interviewFrequency: Estimate how frequently this is asked. Must be one of: "RARE", "COMMON", or "VERY_COMMON"
-- tags: Array of tags. Filter from: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "FREQUENTLY_ASKED"]. Empty array if none apply.
+- tags: Array of tags. If tags are explicitly listed in the question metadata/text (e.g. after a "Tags:" label), extract those exact tags. Otherwise, estimate 1 to 4 relevant tags (such as topics, concepts, or difficulty levels like "Beginner", "Intermediate", "Advanced", "Frequently Asked").
 - technology: The specific technology category (e.g. "JavaScript", "React.js", "Python", "SQL", "Docker", "Node.js"). Keep the name clean, standard, and capitalized correctly (e.g., "JavaScript" instead of "js" or "javascript").
 
 Return a JSON object with a single "questions" field containing the array of parsed questions:
@@ -403,7 +403,7 @@ export function buildQuestionsListParsingPrompt(text: string): string {
   - codeLanguage: The programming language for the code example (e.g. "cpp", "javascript", "python") or null if none
   - difficulty: "EASY", "MEDIUM", or "HARD" (estimate if not specified)
   - interviewFrequency: "RARE", "COMMON", or "VERY_COMMON" (estimate if not specified)
-  - tags: Array of tags from ["BEGINNER", "INTERMEDIATE", "ADVANCED", "FREQUENTLY_ASKED"] (estimate if not specified)
+  - tags: Array of tags. If tags are explicitly listed in the question metadata/text (e.g. after a "Tags:" label), extract those exact tags. Otherwise, estimate 1 to 4 relevant tags (such as topics, concepts, or difficulty levels like "Beginner", "Intermediate", "Advanced", "Frequently Asked").
   
   Return a JSON object:
   {
@@ -575,6 +575,61 @@ ATS Score Criteria:
 - Grammar and spelling quality: +10
 - Professional summary: +5
 
-Resume text to analyze:
-${resumeText}`;
+  Resume text to analyze:
+  ${resumeText}`;
+}
+
+/**
+ * System design evaluation prompt
+ */
+export function buildSystemDesignEvaluationPrompt(
+  question: string,
+  explanation: string,
+  shapesMetadata: string
+): string {
+  return `You are a Principal Software Architect and an elite System Design Interviewer at FAANG.
+Evaluate the candidate's proposed system design.
+
+SYSTEM DESIGN QUESTION:
+${question}
+
+CANDIDATE WRITTEN EXPLANATION:
+${explanation}
+
+WHITEBOARD DIAGRAM COMPONENTS & CONNECTIVITY SUMMARY:
+${shapesMetadata}
+
+---
+MANDATORY SCORING RULES:
+Assess the overall architecture score (from 0 to 100). Be strict, professional, and detailed.
+
+You must evaluate and provide detailed audit reports for the following 9 categories:
+1. Scalability (Horizontal scaling, vertical scaling, auto-scaling)
+2. High Availability (SPOFs - Single Points of Failure, geo-distribution, health checks)
+3. Fault Tolerance (Replication, failovers, backups, retries)
+4. Caching (CDN, distributed cache e.g. Redis, browser caching)
+5. Database Design (Sharding, indexes, read replicas, SQL vs NoSQL selections)
+6. API Design (REST, gRPC, GraphQL, interface definitions)
+7. Security (HTTPS, JWT, OAuth, rate limiting, DDoS protection)
+8. Performance (Bottlenecks, latency, database query times, throughput)
+9. Diagram Quality (Cleanliness, correctness, proper component flow)
+
+Return ONLY valid JSON in this exact structure:
+{
+  "score": 0-100,
+  "scalability": "detailed paragraphs of audit assessment",
+  "highAvailability": "detailed paragraphs of audit assessment",
+  "faultTolerance": "detailed paragraphs of audit assessment",
+  "caching": "detailed paragraphs of audit assessment",
+  "databaseDesign": "detailed paragraphs of audit assessment",
+  "apiDesign": "detailed paragraphs of audit assessment",
+  "security": "detailed paragraphs of audit assessment",
+  "performance": "detailed paragraphs of audit assessment",
+  "diagramQuality": "detailed paragraphs of audit assessment",
+  "strengths": ["specific positive architectural decision 1", "specific positive decision 2", "specific positive decision 3"],
+  "weaknesses": ["specific architectural flaw 1", "flaw 2", "flaw 3"],
+  "improvements": ["concrete actionable improvement recommendation 1", "recommendation 2", "recommendation 3"]
+}
+
+Be analytical, highly technical, and focus on FAANG-level system design requirements. Use markdown formatting inside the category fields if helpful. Keep strengths, weaknesses, and improvements limited to 3 items each.`;
 }

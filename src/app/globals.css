@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 html {
   scroll-behavior: smooth;
 }
@@ -11,86 +13,69 @@ html {
 /* ── Light Mode Tokens ──────────────────────────────────── */
 :root {
   --background: 248 250 252;
-  /* slate-50 */
   --foreground: 15 23 42;
-  /* slate-900 */
   --card: 255 255 255;
   --card-foreground: 15 23 42;
   --popover: 255 255 255;
   --popover-foreground: 15 23 42;
-  --primary: 79 70 229;
-  /* indigo-600 */
+  --primary: 99 102 241;
   --primary-foreground: 255 255 255;
-  --secondary: 147 51 234;
-  /* purple-600 */
+  --secondary: 217 70 239;
   --secondary-foreground: 255 255 255;
   --accent: 59 130 246;
-  /* blue-500 */
   --accent-foreground: 255 255 255;
   --muted: 241 245 249;
-  /* slate-100 */
   --muted-foreground: 100 116 139;
-  /* slate-500 */
   --destructive: 239 68 68;
   --destructive-foreground: 255 255 255;
   --border: 226 232 240;
-  /* slate-200 */
   --input: 226 232 240;
-  --ring: 79 70 229;
+  --ring: 99 102 241;
   --success: 34 197 94;
   --warning: 245 158 11;
   --radius: 0.75rem;
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #3b82f6 100%);
-  --gradient-card: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%);
-  --gradient-mesh: radial-gradient(at 27% 37%, #4f46e5 0%, transparent 50%),
-    radial-gradient(at 97% 21%, #9333ea 0%, transparent 50%),
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #d946ef 100%);
+  --gradient-card: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(217, 70, 239, 0.05) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
+  --gradient-mesh: radial-gradient(at 27% 37%, #6366f1 0%, transparent 50%),
+    radial-gradient(at 97% 21%, #d946ef 0%, transparent 50%),
     radial-gradient(at 52% 99%, #3b82f6 0%, transparent 50%),
     radial-gradient(at 10% 29%, #06b6d4 0%, transparent 50%);
 }
 
 /* ── Dark Mode Tokens ───────────────────────────────────── */
 .dark {
-  --background: 2 6 23;
-  /* slate-950 */
-  --foreground: 248 250 252;
-  /* slate-50 */
-  --card: 15 23 42;
-  /* slate-900 */
-  --card-foreground: 248 250 252;
-  --popover: 15 23 42;
-  --popover-foreground: 248 250 252;
+  --background: 9 9 11;
+  --foreground: 250 250 250;
+  --card: 24 24 27;
+  --card-foreground: 250 250 250;
+  --popover: 24 24 27;
+  --popover-foreground: 250 250 250;
   --primary: 129 140 248;
-  /* indigo-400 */
-  --primary-foreground: 15 23 42;
-  --secondary: 192 132 252;
-  /* purple-400 */
-  --secondary-foreground: 15 23 42;
+  --primary-foreground: 9 9 11;
+  --secondary: 244 114 182;
+  --secondary-foreground: 9 9 11;
   --accent: 96 165 250;
-  /* blue-400 */
-  --accent-foreground: 15 23 42;
-  --muted: 30 41 59;
-  /* slate-800 */
-  --muted-foreground: 148 163 184;
-  /* slate-400 */
+  --accent-foreground: 9 9 11;
+  --muted: 39 39 42;
+  --muted-foreground: 161 161 170;
   --destructive: 248 113 113;
-  --destructive-foreground: 15 23 42;
-  --border: 51 65 85;
-  /* slate-700 */
-  --input: 51 65 85;
+  --destructive-foreground: 9 9 11;
+  --border: 63 63 70;
+  --input: 63 63 70;
   --ring: 129 140 248;
   --success: 74 222 128;
   --warning: 251 191 36;
 
-  --gradient-primary: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #60a5fa 100%);
-  --gradient-card: linear-gradient(135deg, rgba(129, 140, 248, 0.08) 0%, rgba(192, 132, 252, 0.08) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(129, 140, 248, 0.2) 0%, transparent 50%);
-  --gradient-mesh: radial-gradient(at 27% 37%, rgba(79, 70, 229, 0.3) 0%, transparent 50%),
-    radial-gradient(at 97% 21%, rgba(147, 51, 234, 0.2) 0%, transparent 50%),
-    radial-gradient(at 52% 99%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
-    radial-gradient(at 10% 29%, rgba(6, 182, 212, 0.15) 0%, transparent 50%);
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #d946ef 100%);
+  --gradient-card: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(217, 70, 239, 0.05) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
+  --gradient-mesh: radial-gradient(at 27% 37%, rgba(99, 102, 241, 0.2) 0%, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(217, 70, 239, 0.15) 0%, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(96, 165, 250, 0.15) 0%, transparent 50%),
+    radial-gradient(at 10% 29%, rgba(6, 182, 212, 0.12) 0%, transparent 50%);
 }
 
 /* ── Tailwind Theme Extension ───────────────────────────── */
@@ -258,11 +243,11 @@ body {
 
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 0 20px rgb(var(--primary) / 0.15);
   }
 
   50% {
-    box-shadow: 0 0 40px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 0 40px rgb(var(--primary) / 0.3);
   }
 }
 
@@ -1090,4 +1075,697 @@ body.detail-view-open #desktop-sidebar {
 
 body.detail-view-open header {
   left: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Premium Markdown Directives — Notion/GitBook-style cards
+   Added: 2026-07 — InterviewVault AI
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Highlighted Text (==text==) ────────────────────────────── */
+.prose-custom .md-highlight,
+mark.md-highlight {
+  background: linear-gradient(120deg, rgba(250, 204, 21, 0.35) 0%, rgba(250, 204, 21, 0.2) 100%);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(250, 204, 21, 0.6);
+  transition: background 0.2s ease;
+}
+
+.dark mark.md-highlight {
+  background: linear-gradient(120deg, rgba(250, 204, 21, 0.22) 0%, rgba(250, 204, 21, 0.1) 100%);
+  border-bottom-color: rgba(250, 204, 21, 0.4);
+}
+
+/* ── Base Callout Card ──────────────────────────────────────── */
+.md-callout {
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  overflow: visible;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  animation: fadeInUp 0.35s ease both;
+  position: relative;
+  /* Thick colored left bar via box-shadow instead of border-left
+     so we can keep border-radius without clipping */
+  box-shadow: inset 5px 0 0 var(--callout-accent);
+}
+
+.md-callout:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 5px 0 0 var(--callout-accent),
+              0 8px 28px var(--callout-shadow);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header row — icon badge + label ───────────────────────── */
+.md-callout-header,
+.md-callout-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.875rem 1.25rem 0.625rem;
+}
+
+.md-callout-toggle {
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity 0.15s ease;
+  padding: 0.875rem 1.25rem;
+}
+
+.md-callout-toggle:hover { opacity: 0.85; }
+
+.md-callout-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* Icon bubble */
+.md-callout-header svg,
+.md-callout-header-inner svg {
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0.35rem;
+  border-radius: 8px;
+  box-sizing: content-box;
+  background: var(--callout-icon-bg);
+  color: var(--callout-icon-color);
+}
+
+/* Label pill */
+.md-callout-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.18em 0.65em;
+  border-radius: 999px;
+  background: var(--callout-label-bg);
+  color: var(--callout-label-color);
+  border: 1px solid var(--callout-label-border);
+  white-space: nowrap;
+}
+
+.md-callout-chevron {
+  transition: transform 0.22s ease;
+  flex-shrink: 0;
+  color: var(--callout-label-color);
+  opacity: 0.7;
+}
+
+/* Divider line under header */
+.md-callout-header,
+.md-callout-toggle {
+  border-bottom: 1px solid var(--callout-divider);
+}
+
+/* Body */
+.md-callout-body {
+  padding: 0.75rem 1.25rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.md-callout-body p:first-child { margin-top: 0; }
+.md-callout-body p:last-child  { margin-bottom: 0; }
+.md-callout-body ul { margin: 0.35rem 0; }
+.md-callout-body li { margin: 0.25rem 0; }
+
+/* ── Definition / Info — Blue ───────────────────────────────── */
+.md-callout-definition,
+.md-callout-info {
+  --callout-accent:       rgb(59, 130, 246);
+  --callout-shadow:       rgba(59, 130, 246, 0.15);
+  --callout-icon-bg:      rgba(59, 130, 246, 0.15);
+  --callout-icon-color:   rgb(59, 130, 246);
+  --callout-label-bg:     rgba(59, 130, 246, 0.12);
+  --callout-label-color:  rgb(37, 99, 235);
+  --callout-label-border: rgba(59, 130, 246, 0.3);
+  --callout-divider:      rgba(59, 130, 246, 0.15);
+  background: rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+.dark .md-callout-definition,
+.dark .md-callout-info {
+  --callout-accent:       rgb(96, 165, 250);
+  --callout-icon-bg:      rgba(96, 165, 250, 0.18);
+  --callout-icon-color:   rgb(147, 197, 253);
+  --callout-label-bg:     rgba(96, 165, 250, 0.14);
+  --callout-label-color:  rgb(147, 197, 253);
+  --callout-label-border: rgba(96, 165, 250, 0.3);
+  --callout-divider:      rgba(96, 165, 250, 0.14);
+  background: rgba(59, 130, 246, 0.07);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+/* ── Important — Red ─────────────────────────────────────────── */
+.md-callout-important {
+  --callout-accent:       rgb(239, 68, 68);
+  --callout-shadow:       rgba(239, 68, 68, 0.15);
+  --callout-icon-bg:      rgba(239, 68, 68, 0.15);
+  --callout-icon-color:   rgb(239, 68, 68);
+  --callout-label-bg:     rgba(239, 68, 68, 0.12);
+  --callout-label-color:  rgb(185, 28, 28);
+  --callout-label-border: rgba(239, 68, 68, 0.3);
+  --callout-divider:      rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.dark .md-callout-important {
+  --callout-accent:       rgb(248, 113, 113);
+  --callout-icon-bg:      rgba(248, 113, 113, 0.18);
+  --callout-icon-color:   rgb(252, 165, 165);
+  --callout-label-bg:     rgba(248, 113, 113, 0.14);
+  --callout-label-color:  rgb(252, 165, 165);
+  --callout-label-border: rgba(248, 113, 113, 0.3);
+  --callout-divider:      rgba(248, 113, 113, 0.14);
+  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+/* ── Interview Tip — Amber ───────────────────────────────────── */
+.md-callout-tip {
+  --callout-accent:       rgb(245, 158, 11);
+  --callout-shadow:       rgba(245, 158, 11, 0.15);
+  --callout-icon-bg:      rgba(245, 158, 11, 0.15);
+  --callout-icon-color:   rgb(180, 83, 9);
+  --callout-label-bg:     rgba(245, 158, 11, 0.12);
+  --callout-label-color:  rgb(146, 64, 14);
+  --callout-label-border: rgba(245, 158, 11, 0.35);
+  --callout-divider:      rgba(245, 158, 11, 0.18);
+  background: rgba(245, 158, 11, 0.05);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.dark .md-callout-tip {
+  --callout-accent:       rgb(251, 191, 36);
+  --callout-icon-bg:      rgba(251, 191, 36, 0.18);
+  --callout-icon-color:   rgb(253, 224, 71);
+  --callout-label-bg:     rgba(251, 191, 36, 0.14);
+  --callout-label-color:  rgb(253, 224, 71);
+  --callout-label-border: rgba(251, 191, 36, 0.35);
+  --callout-divider:      rgba(251, 191, 36, 0.15);
+  background: rgba(245, 158, 11, 0.07);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+/* ── Warning — Orange ────────────────────────────────────────── */
+.md-callout-warning {
+  --callout-accent:       rgb(249, 115, 22);
+  --callout-shadow:       rgba(249, 115, 22, 0.15);
+  --callout-icon-bg:      rgba(249, 115, 22, 0.15);
+  --callout-icon-color:   rgb(194, 65, 12);
+  --callout-label-bg:     rgba(249, 115, 22, 0.12);
+  --callout-label-color:  rgb(154, 52, 18);
+  --callout-label-border: rgba(249, 115, 22, 0.32);
+  --callout-divider:      rgba(249, 115, 22, 0.15);
+  background: rgba(249, 115, 22, 0.05);
+  border-color: rgba(249, 115, 22, 0.22);
+}
+.dark .md-callout-warning {
+  --callout-accent:       rgb(251, 146, 60);
+  --callout-icon-bg:      rgba(251, 146, 60, 0.18);
+  --callout-icon-color:   rgb(253, 186, 116);
+  --callout-label-bg:     rgba(251, 146, 60, 0.14);
+  --callout-label-color:  rgb(253, 186, 116);
+  --callout-label-border: rgba(251, 146, 60, 0.32);
+  --callout-divider:      rgba(251, 146, 60, 0.15);
+  background: rgba(249, 115, 22, 0.07);
+  border-color: rgba(249, 115, 22, 0.2);
+}
+
+/* ── Example — Green ─────────────────────────────────────────── */
+.md-callout-example {
+  --callout-accent:       rgb(34, 197, 94);
+  --callout-shadow:       rgba(34, 197, 94, 0.15);
+  --callout-icon-bg:      rgba(34, 197, 94, 0.15);
+  --callout-icon-color:   rgb(22, 163, 74);
+  --callout-label-bg:     rgba(34, 197, 94, 0.12);
+  --callout-label-color:  rgb(21, 128, 61);
+  --callout-label-border: rgba(34, 197, 94, 0.3);
+  --callout-divider:      rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+.dark .md-callout-example {
+  --callout-accent:       rgb(74, 222, 128);
+  --callout-icon-bg:      rgba(74, 222, 128, 0.18);
+  --callout-icon-color:   rgb(134, 239, 172);
+  --callout-label-bg:     rgba(74, 222, 128, 0.14);
+  --callout-label-color:  rgb(134, 239, 172);
+  --callout-label-border: rgba(74, 222, 128, 0.3);
+  --callout-divider:      rgba(74, 222, 128, 0.14);
+  background: rgba(34, 197, 94, 0.07);
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+/* ── Best Practice — Emerald ─────────────────────────────────── */
+.md-callout-best-practice {
+  --callout-accent:       rgb(16, 185, 129);
+  --callout-shadow:       rgba(16, 185, 129, 0.15);
+  --callout-icon-bg:      rgba(16, 185, 129, 0.15);
+  --callout-icon-color:   rgb(5, 150, 105);
+  --callout-label-bg:     rgba(16, 185, 129, 0.12);
+  --callout-label-color:  rgb(4, 120, 87);
+  --callout-label-border: rgba(16, 185, 129, 0.3);
+  --callout-divider:      rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+.dark .md-callout-best-practice {
+  --callout-accent:       rgb(52, 211, 153);
+  --callout-icon-bg:      rgba(52, 211, 153, 0.18);
+  --callout-icon-color:   rgb(110, 231, 183);
+  --callout-label-bg:     rgba(52, 211, 153, 0.14);
+  --callout-label-color:  rgb(110, 231, 183);
+  --callout-label-border: rgba(52, 211, 153, 0.3);
+  --callout-divider:      rgba(52, 211, 153, 0.14);
+  background: rgba(16, 185, 129, 0.07);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+/* ── Common Mistake — Rose ───────────────────────────────────── */
+.md-callout-mistake {
+  --callout-accent:       rgb(244, 63, 94);
+  --callout-shadow:       rgba(244, 63, 94, 0.15);
+  --callout-icon-bg:      rgba(244, 63, 94, 0.15);
+  --callout-icon-color:   rgb(225, 29, 72);
+  --callout-label-bg:     rgba(244, 63, 94, 0.12);
+  --callout-label-color:  rgb(190, 18, 60);
+  --callout-label-border: rgba(244, 63, 94, 0.3);
+  --callout-divider:      rgba(244, 63, 94, 0.15);
+  background: rgba(244, 63, 94, 0.05);
+  border-color: rgba(244, 63, 94, 0.2);
+}
+.dark .md-callout-mistake {
+  --callout-accent:       rgb(251, 113, 133);
+  --callout-icon-bg:      rgba(251, 113, 133, 0.18);
+  --callout-icon-color:   rgb(253, 164, 175);
+  --callout-label-bg:     rgba(251, 113, 133, 0.14);
+  --callout-label-color:  rgb(253, 164, 175);
+  --callout-label-border: rgba(251, 113, 133, 0.3);
+  --callout-divider:      rgba(251, 113, 133, 0.14);
+  background: rgba(244, 63, 94, 0.07);
+  border-color: rgba(244, 63, 94, 0.18);
+}
+
+/* ── Interview Question — Purple ─────────────────────────────── */
+.md-callout-question {
+  --callout-accent:       rgb(139, 92, 246);
+  --callout-shadow:       rgba(139, 92, 246, 0.18);
+  --callout-icon-bg:      rgba(139, 92, 246, 0.15);
+  --callout-icon-color:   rgb(109, 40, 217);
+  --callout-label-bg:     rgba(139, 92, 246, 0.12);
+  --callout-label-color:  rgb(91, 33, 182);
+  --callout-label-border: rgba(139, 92, 246, 0.32);
+  --callout-divider:      rgba(139, 92, 246, 0.15);
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.22);
+}
+.dark .md-callout-question {
+  --callout-accent:       rgb(167, 139, 250);
+  --callout-icon-bg:      rgba(167, 139, 250, 0.18);
+  --callout-icon-color:   rgb(196, 181, 253);
+  --callout-label-bg:     rgba(167, 139, 250, 0.14);
+  --callout-label-color:  rgb(196, 181, 253);
+  --callout-label-border: rgba(167, 139, 250, 0.32);
+  --callout-divider:      rgba(167, 139, 250, 0.14);
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+/* ── Follow-up Questions — Indigo (Collapsible) ──────────────── */
+.md-callout-followup {
+  --callout-accent:       rgb(99, 102, 241);
+  --callout-shadow:       rgba(99, 102, 241, 0.15);
+  --callout-icon-bg:      rgba(99, 102, 241, 0.15);
+  --callout-icon-color:   rgb(79, 70, 229);
+  --callout-label-bg:     rgba(99, 102, 241, 0.12);
+  --callout-label-color:  rgb(67, 56, 202);
+  --callout-label-border: rgba(99, 102, 241, 0.3);
+  --callout-divider:      rgba(99, 102, 241, 0.15);
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+.dark .md-callout-followup {
+  --callout-accent:       rgb(129, 140, 248);
+  --callout-icon-bg:      rgba(129, 140, 248, 0.18);
+  --callout-icon-color:   rgb(165, 180, 252);
+  --callout-label-bg:     rgba(129, 140, 248, 0.14);
+  --callout-label-color:  rgb(165, 180, 252);
+  --callout-label-border: rgba(129, 140, 248, 0.3);
+  --callout-divider:      rgba(129, 140, 248, 0.14);
+  background: rgba(99, 102, 241, 0.07);
+  border-color: rgba(99, 102, 241, 0.18);
+}
+
+/* ── Summary Card — Gradient ─────────────────────────────────── */
+.md-callout-summary {
+  --callout-accent:       #6366f1;
+  --callout-shadow:       rgba(99, 102, 241, 0.2);
+  --callout-icon-bg:      rgba(99, 102, 241, 0.18);
+  --callout-icon-color:   #6366f1;
+  --callout-label-bg:     rgba(99, 102, 241, 0.12);
+  --callout-label-color:  #4f46e5;
+  --callout-label-border: rgba(99, 102, 241, 0.35);
+  --callout-divider:      rgba(99, 102, 241, 0.15);
+  background: linear-gradient(135deg,
+    rgba(99, 102, 241, 0.07) 0%,
+    rgba(217, 70, 239, 0.05) 50%,
+    rgba(59, 130, 246, 0.05) 100%);
+  border-color: rgba(99, 102, 241, 0.22);
+  box-shadow: inset 5px 0 0 #6366f1, 0 4px 20px rgba(99, 102, 241, 0.12);
+  position: relative;
+}
+.md-callout-summary::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6366f1, #d946ef, #3b82f6);
+  border-radius: 12px 12px 0 0;
+}
+.md-callout-summary .md-callout-header {
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+}
+.md-callout-summary .md-callout-label {
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(217,70,239,0.12));
+  border-color: rgba(99, 102, 241, 0.35);
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+  color: #4f46e5;
+}
+.dark .md-callout-summary {
+  background: linear-gradient(135deg,
+    rgba(99, 102, 241, 0.1) 0%,
+    rgba(217, 70, 239, 0.07) 50%,
+    rgba(59, 130, 246, 0.06) 100%);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+.dark .md-callout-summary .md-callout-label {
+  color: rgb(165, 180, 252);
+  border-color: rgba(129, 140, 248, 0.35);
+}
+
+/* ── Frequency Badges ────────────────────────────────────────── */
+.md-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3em 0.75em;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid;
+  margin: 0.15rem 0.25rem 0.15rem 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: default;
+  user-select: none;
+}
+
+.md-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.md-badge-freq-very-common {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: rgb(22, 163, 74);
+}
+.dark .md-badge-freq-very-common {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: rgb(74, 222, 128);
+}
+
+.md-badge-freq-common {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: rgb(79, 70, 229);
+}
+.dark .md-badge-freq-common {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.25);
+  color: rgb(129, 140, 248);
+}
+
+.md-badge-freq-rare {
+  background: rgba(107, 114, 128, 0.1);
+  border-color: rgba(107, 114, 128, 0.3);
+  color: rgb(75, 85, 99);
+}
+.dark .md-badge-freq-rare {
+  background: rgba(107, 114, 128, 0.12);
+  border-color: rgba(107, 114, 128, 0.25);
+  color: rgb(156, 163, 175);
+}
+
+/* ── Difficulty Badges ───────────────────────────────────────── */
+.md-badge-diff-easy {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: rgb(22, 163, 74);
+}
+.dark .md-badge-diff-easy {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: rgb(74, 222, 128);
+}
+
+.md-badge-diff-medium {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: rgb(180, 83, 9);
+}
+.dark .md-badge-diff-medium {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: rgb(251, 191, 36);
+}
+
+.md-badge-diff-hard {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: rgb(185, 28, 28);
+}
+.dark .md-badge-diff-hard {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: rgb(248, 113, 113);
+}
+
+/* ── Tag Pills ───────────────────────────────────────────────── */
+.md-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+.md-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28em 0.8em;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgb(var(--muted));
+  border: 1px solid rgb(var(--border) / 0.6);
+  color: rgb(var(--foreground) / 0.8);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.md-tag:hover {
+  background: rgb(var(--primary) / 0.12);
+  border-color: rgb(var(--primary) / 0.4);
+  color: rgb(var(--primary));
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgb(var(--primary) / 0.15);
+}
+
+/* Colorful tag variants (cycle through hue) */
+.md-tag:nth-child(3n+1) { --tag-hue: var(--primary); }
+.md-tag:nth-child(3n+2):hover {
+  background: rgba(217, 70, 239, 0.12);
+  border-color: rgba(217, 70, 239, 0.4);
+  color: rgb(217, 70, 239);
+  box-shadow: 0 3px 10px rgba(217, 70, 239, 0.15);
+}
+.md-tag:nth-child(3n):hover {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.4);
+  color: rgb(249, 115, 22);
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.15);
+}
+
+/* ── ASCII Flow Diagram ───────────────────────────────────────── */
+.md-flow-diagram {
+  margin: 1.25rem 0;
+  border-radius: 12px;
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border) / 0.5);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+}
+
+.dark .md-flow-diagram {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.md-flow-diagram pre {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 2;
+  color: rgb(var(--foreground) / 0.85);
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Improved Code Block ─────────────────────────────────────── */
+.code-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.code-block-expand {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  color: rgba(248, 250, 252, 0.5);
+  font-size: 0.7rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.code-block-expand:hover {
+  color: rgba(248, 250, 252, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.code-block-body {
+  position: relative;
+}
+
+.code-block-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, #0a0e17 85%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.75rem;
+  cursor: pointer;
+}
+
+.code-block-expand-btn {
+  padding: 0.3em 1em;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.18);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: rgb(129, 140, 248);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  letter-spacing: 0.03em;
+  transition: all 0.15s ease;
+}
+
+.code-block-expand-btn:hover {
+  background: rgba(99, 102, 241, 0.28);
+}
+
+/* ── Prose custom: improved blockquote (Interview Tip style) ─── */
+.prose-custom blockquote {
+  border-left: 3px solid rgb(var(--primary) / 0.6);
+  background: rgb(var(--primary) / 0.05);
+  border-radius: 0 10px 10px 0;
+  position: relative;
+}
+
+.prose-custom blockquote::before {
+  content: '💡';
+  position: absolute;
+  left: -1.2rem;
+  top: 0.6rem;
+  font-size: 0.9rem;
+}
+
+/* ── Tables: improved sticky header ─────────────────────────── */
+.prose-custom table {
+  display: block;
+  overflow-x: auto;
+}
+
+.prose-custom thead th {
+  position: sticky;
+  top: 0;
+  background: rgb(var(--muted));
+  z-index: 1;
+}
+
+.dark .prose-custom thead th {
+  background: rgb(var(--muted));
+}
+
+/* ── Checklist items ─────────────────────────────────────────── */
+.prose-custom input[type="checkbox"] {
+  accent-color: rgb(var(--primary));
+  width: 1em;
+  height: 1em;
+  margin-right: 0.4em;
+  vertical-align: middle;
+  cursor: not-allowed;
+}
+
+/* ── Mobile responsive callouts ─────────────────────────────── */
+@media (max-width: 640px) {
+  .md-callout {
+    border-radius: 10px;
+    margin: 0.875rem 0;
+  }
+  .md-callout-body {
+    padding: 0.5rem 0.875rem 0.875rem;
+    font-size: 0.84rem;
+  }
+  .md-callout-header,
+  .md-callout-toggle {
+    padding: 0.65rem 0.875rem 0.4rem;
+  }
+  .md-flow-diagram pre {
+    font-size: 0.82rem;
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -37,9 +37,10 @@ import {
   Upload,
   Shield,
   User,
+  SlidersHorizontal,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent, ConfirmDeleteButton } from "@/components/shared";
 import { cn, stripMarkdown } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
@@ -166,6 +167,8 @@ function highlightCode(code: string, language: string): string {
 
 export default function TechnologyWorkspacePage() {
   const { slug } = useParams() as { slug: string };
+  const searchParams = useSearchParams();
+  const questionIdParam = searchParams.get("q");
   const { data: session } = useSession();
   const isAdmin = (session?.user as any)?.role === "ADMIN" || (session?.user as any)?.role === "SUPER_ADMIN";
   const [savingToVault, setSavingToVault] = useState<string | null>(null);
@@ -175,6 +178,10 @@ export default function TechnologyWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
+  const [selectedFilterTags, setSelectedFilterTags] = useState<string[]>([]);
+  const [showAllFilterTags, setShowAllFilterTags] = useState(false);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
   
   // Layout View: grid or list
   const [layoutView, setLayoutView] = useState<"grid" | "list">("grid");
@@ -204,6 +211,23 @@ export default function TechnologyWorkspacePage() {
   ]);
   const [newTag, setNewTag] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const sortedAvailableTags = useMemo(() => {
+    return [...availableTags]
+      .map(tag => ({
+        tag,
+        count: questions.filter((q) => q.tags && q.tags.includes(tag)).length
+      }))
+      .filter(t => t.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [availableTags, questions]);
+
+  const visibleTags = useMemo(() => {
+    if (showAllFilterTags) return sortedAvailableTags;
+    return sortedAvailableTags.filter((t, idx) => idx < 10 || selectedFilterTags.includes(t.tag));
+  }, [sortedAvailableTags, showAllFilterTags, selectedFilterTags]);
+
+  const activeFiltersCount = (difficultyFilter !== "ALL" ? 1 : 0) + selectedFilterTags.length;
 
   // Edit Technology Workspace states
   const [isEditTechModalOpen, setIsEditTechModalOpen] = useState(false);
@@ -400,6 +424,15 @@ export default function TechnologyWorkspacePage() {
   useEffect(() => {
     loadData();
   }, [slug]);
+
+  useEffect(() => {
+    if (questionIdParam && questions.length > 0) {
+      const matched = questions.find((q) => q.id === questionIdParam);
+      if (matched) {
+        setDetailViewQuestion(matched);
+      }
+    }
+  }, [questionIdParam, questions]);
 
   const isReadOnly = tech?.isGlobalTemplate && tech?.userId !== (session?.user as any)?.id;
 
@@ -645,7 +678,11 @@ export default function TechnologyWorkspacePage() {
     const matchesDifficulty =
       difficultyFilter === "ALL" || q.difficulty === difficultyFilter;
 
-    return matchesSearch && matchesDifficulty;
+    const matchesTags =
+      selectedFilterTags.length === 0 ||
+      selectedFilterTags.every((t) => q.tags && q.tags.includes(t));
+
+    return matchesSearch && matchesDifficulty && matchesTags;
   });
 
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
@@ -882,44 +919,175 @@ export default function TechnologyWorkspacePage() {
       </motion.div>
 
       {/* Filters, Page Size & Layout Toggles */}
-      <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/20">
-        {/* Difficulty Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {[
-            { label: "All Levels", value: "ALL" },
-            { label: "Easy", value: "EASY" },
-            { label: "Medium", value: "MEDIUM" },
-            { label: "Hard", value: "HARD" },
-          ].map((tab) => {
-            const count = questions.filter(
-              (q) => (tab.value === "ALL" || q.difficulty === tab.value)
-            ).length;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => {
-                  setDifficultyFilter(tab.value);
-                  setCurrentPage(1);
-                }}
-                className={cn(
-                  "px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
-                  difficultyFilter === tab.value
-                    ? "gradient-bg text-white shadow-lg shadow-primary/25"
-                    : "glass hover:bg-muted text-muted-foreground"
-                )}
-              >
-                <span>{tab.label}</span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-md font-bold",
-                  difficultyFilter === tab.value
-                    ? "bg-white/20 text-white"
-                    : "bg-muted-foreground/10 text-muted-foreground"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+      <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/20 relative">
+        {/* Left: Collapsible Filter Popover Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border cursor-pointer h-9",
+              activeFiltersCount > 0
+                ? "bg-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/5"
+                : "glass border-border hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span>Filter Menu</span>
+            {activeFiltersCount > 0 && (
+              <span className="flex items-center justify-center bg-primary text-white text-[10px] font-bold h-4.5 min-w-4.5 px-1.5 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {isFilterMenuOpen && (
+              <>
+                {/* Backdrop overlay to close when click outside */}
+                <div className="fixed inset-0 z-40" onClick={() => setIsFilterMenuOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 mt-2 w-80 sm:w-96 rounded-2xl border border-border bg-[#0b0f19]/95 backdrop-blur-xl p-4 shadow-2xl z-50 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin"
+                >
+                  {/* Difficulty Section */}
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                      Difficulty Level
+                    </h4>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { label: "All", value: "ALL" },
+                        { label: "Easy", value: "EASY" },
+                        { label: "Med", value: "MEDIUM" },
+                        { label: "Hard", value: "HARD" },
+                      ].map((tab) => {
+                        const count = questions.filter(
+                          (q) => (tab.value === "ALL" || q.difficulty === tab.value)
+                        ).length;
+                        const isSelected = difficultyFilter === tab.value;
+                        return (
+                          <button
+                            key={tab.value}
+                            onClick={() => {
+                              setDifficultyFilter(tab.value);
+                              setCurrentPage(1);
+                            }}
+                            className={cn(
+                              "py-1.5 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer",
+                              isSelected
+                                ? "bg-primary text-white"
+                                : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
+                            )}
+                          >
+                            <div>{tab.label}</div>
+                            <div className="text-[9px] opacity-60 font-medium">({count})</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tags Section */}
+                  <div className="space-y-2 border-t border-border/40 pt-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                        Filter by Tags
+                      </h4>
+                      {selectedFilterTags.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setSelectedFilterTags([]);
+                            setCurrentPage(1);
+                          }}
+                          className="text-[10px] text-destructive hover:underline font-bold"
+                        >
+                          Clear Tags
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Inside-popover Tag search input */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                      <input
+                        type="text"
+                        value={tagSearchQuery}
+                        onChange={(e) => setTagSearchQuery(e.target.value)}
+                        placeholder="Search tags..."
+                        className="w-full rounded-lg border border-border/50 bg-[#0f1422] pl-8 pr-3 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-primary focus:border-transparent"
+                      />
+                      {tagSearchQuery && (
+                        <button
+                          onClick={() => setTagSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Tag Pills List */}
+                    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pt-1 scrollbar-thin">
+                      {sortedAvailableTags
+                        .filter(({ tag }) =>
+                          tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                        )
+                        .map(({ tag, count }) => {
+                          const isSelected = selectedFilterTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                setSelectedFilterTags((prev) =>
+                                  prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                                );
+                                setCurrentPage(1);
+                              }}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-150 border cursor-pointer select-none flex items-center gap-1",
+                                isSelected
+                                  ? "bg-primary/20 border-primary text-primary"
+                                  : "bg-muted/30 hover:bg-muted/50 border-border/50 text-muted-foreground"
+                              )}
+                            >
+                              <span>#{tag.replace("_", " ")}</span>
+                              <span className="text-[9px] opacity-60">({count})</span>
+                            </button>
+                          );
+                        })}
+                      {sortedAvailableTags.filter(({ tag }) =>
+                        tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <p className="text-[11px] text-muted-foreground/60 py-2">No tags match search query.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clear all filter option */}
+                  {activeFiltersCount > 0 && (
+                    <div className="border-t border-border/40 pt-2.5 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground text-[10px]">
+                        {activeFiltersCount} filter(s) active
+                      </span>
+                      <button
+                        onClick={() => {
+                          setDifficultyFilter("ALL");
+                          setSelectedFilterTags([]);
+                          setCurrentPage(1);
+                        }}
+                        className="text-destructive hover:underline font-bold text-[10px]"
+                      >
+                        Clear All Filters
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Page Size & Layout view switch */}
@@ -982,7 +1150,6 @@ export default function TechnologyWorkspacePage() {
           </div>
         </div>
       </motion.div>
-
       {/* Search Bar & Sorting */}
       <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
@@ -1163,7 +1330,17 @@ export default function TechnologyWorkspacePage() {
                   <div className="mt-auto space-y-3 pt-3 border-t border-border/30">
                     <div className="flex flex-wrap gap-1.5">
                       {q.tags && q.tags.slice(0, 2).map((tag: string) => (
-                        <span key={tag} className="text-[9px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/10">
+                        <span 
+                          key={tag} 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFilterTags((prev) =>
+                              prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                            );
+                            setCurrentPage(1);
+                          }}
+                          className="text-[9px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/10 hover:bg-primary/20 hover:border-primary/30 transition-all cursor-pointer select-none"
+                        >
                           {tag.replace("_", " ")}
                         </span>
                       ))}
@@ -1256,7 +1433,17 @@ export default function TechnologyWorkspacePage() {
                         {statusLabels[q.revisionStatus as keyof typeof statusLabels]}
                       </span>
                       {q.tags && q.tags.slice(0, 2).map((tag: string) => (
-                        <span key={tag} className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        <span 
+                          key={tag} 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFilterTags((prev) =>
+                              prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                            );
+                            setCurrentPage(1);
+                          }}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer select-none"
+                        >
                           {tag.replace("_", " ")}
                         </span>
                       ))}

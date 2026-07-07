@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import DashboardClient from "./DashboardClient";
 import { getLatestResumeAnalysisForDashboard } from "@/actions/resume";
 
@@ -367,7 +367,7 @@ export default async function DashboardPage() {
       recentActivity={recentActivity}
       dueCount={dueCount}
       weeks={weeks}
-      resumeScore={resumeScore ? { atsScore: resumeScore.atsScore, createdAt: resumeScore.createdAt.toISOString() } : null}
+      resumeScore={resumeScore ? { atsScore: resumeScore.atsScore, createdAt: format(resumeScore.createdAt, "M/d/yyyy") } : null}
     />
   );
 }

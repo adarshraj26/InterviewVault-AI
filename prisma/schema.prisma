@@ -76,6 +76,7 @@ model User {
   bookmarks      Bookmark[]
   subscription   Subscription?
   aiCredits      AICredit?
+  systemDesignInterviews SystemDesignInterview[]
 
   @@index([email])
 }
@@ -408,4 +409,58 @@ model ResumeAnalysis {
   @@index([resumeId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ── System Design Whiteboard Mock Interviews ─────────────────
+
+model SystemDesignInterview {
+  id                 String                @id @default(cuid())
+  technology         String
+  difficulty         Difficulty
+  question           String                @db.Text
+  userExplanation    String?               @db.Text
+  score              Float?
+  completedAt        DateTime?
+
+  // Detailed AI Audit Categories (stored as JSON or separate text blocks)
+  scalability        String?               @db.Text
+  highAvailability   String?               @db.Text
+  faultTolerance     String?               @db.Text
+  caching            String?               @db.Text
+  databaseDesign     String?               @db.Text
+  apiDesign          String?               @db.Text
+  security           String?               @db.Text
+  performance        String?               @db.Text
+  diagramQuality     String?               @db.Text
+
+  strengths          String[]
+  weaknesses         String[]
+  improvements       String[]
+
+  userId             String
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  canvasState        String?               @db.Text // Current Excalidraw JSON stringified
+  screenshot         String?               @db.Text // Base64 DataURL or Image link
+
+  versions           SystemDesignVersion[]
+
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([userId])
+}
+
+model SystemDesignVersion {
+  id                 String                @id @default(cuid())
+  canvasState        String                @db.Text
+  screenshot         String?               @db.Text
+  versionNumber      Int
+
+  interviewId        String
+  interview          SystemDesignInterview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime              @default(now())
+
+  @@index([interviewId])
 }

@@ -168,7 +168,7 @@ export default function DashboardClient({
                     <p className="text-sm text-muted-foreground font-medium">Resume Score</p>
                     <p className="text-xl font-bold">{resumeScore.atsScore} / 100</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Analyzed {new Date(resumeScore.createdAt).toLocaleDateString()}
+                      Analyzed {resumeScore.createdAt}
                     </p>
                   </div>
                 </div>

@@ -748,6 +748,25 @@ function fallbackMarkdownParser(text: string): AIParsedQuestion[] {
     } else {
       // Accumulate answer lines if we have a current question
       if (currentQuestion) {
+        const tagMatch = trimmed.match(/^\*?\*?tags?\*?\*?\s*:\s*(.+)/i);
+        if (tagMatch) {
+          currentQuestion.tags = tagMatch[1].split(",").map(t => t.trim().replace(/\*+/g, "")).filter(Boolean);
+          continue;
+        }
+
+        const freqMatch = trimmed.match(/^\*?\*?frequency\*?\*?\s*:\s*(.+)/i);
+        if (freqMatch) {
+          const freqVal = freqMatch[1].replace(/⭐/g, "").trim().toLowerCase();
+          if (freqVal.includes("very common") || freqVal.includes("very_common")) {
+            currentQuestion.interviewFrequency = "VERY_COMMON";
+          } else if (freqVal.includes("rare")) {
+            currentQuestion.interviewFrequency = "RARE";
+          } else {
+            currentQuestion.interviewFrequency = "COMMON";
+          }
+          continue;
+        }
+
         let cleanLine = line;
         if (trimmed.startsWith("**Answer:**")) {
           cleanLine = trimmed.replace(/^\*\*Answer:\*\*\s*/i, "");
@@ -1070,3 +1089,94 @@ export async function formatAnswerAction(questionId: string) {
     return { error: getFriendlyAIError(error) };
   }
 }
+
+export async function globalSearchAction(query: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  const userId = session.user.id;
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return { technologies: [], questions: [], notes: [] };
+
+  try {
+    const [technologies, questions, notes] = await Promise.all([
+      db.technology.findMany({
+        where: {
+          OR: [
+            { userId, name: { contains: cleanQuery, mode: "insensitive" } },
+            { userId, description: { contains: cleanQuery, mode: "insensitive" } },
+            { isGlobalTemplate: true, name: { contains: cleanQuery, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          icon: true,
+          description: true,
+        },
+        take: 5,
+      }),
+      db.question.findMany({
+        where: {
+          userId,
+          OR: [
+            { title: { contains: cleanQuery, mode: "insensitive" } },
+            { answer: { contains: cleanQuery, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          technology: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+        },
+        take: 10,
+      }),
+      db.note.findMany({
+        where: {
+          userId,
+          OR: [
+            { title: { contains: cleanQuery, mode: "insensitive" } },
+            { content: { contains: cleanQuery, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          technology: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+        },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      technologies,
+      questions: questions.map(q => ({
+        id: q.id,
+        title: q.title,
+        difficulty: q.difficulty,
+        techName: q.technology?.name || "General",
+        techSlug: q.technology?.slug || "",
+      })),
+      notes: notes.map(n => ({
+        id: n.id,
+        title: n.title,
+        type: n.type,
+        techName: n.technology?.name || "General",
+        techSlug: n.technology?.slug || "",
+      })),
+    };
+  } catch (error) {
+    console.error("Global search action error:", error);
+    return { technologies: [], questions: [], notes: [] };
+  }
+}
+

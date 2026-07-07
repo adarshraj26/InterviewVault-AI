@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mic, Play, ChevronRight, Loader2 } from "lucide-react";
+import { Mic, Play, ChevronRight, Loader2, Layers, Cpu } from "lucide-react";
 import { GlassCard } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { startMockInterview } from "@/actions/mockInterviews";
+import { startSystemDesignInterview } from "@/actions/systemDesign";
 import { toast } from "sonner";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -22,12 +23,15 @@ interface Tech {
 
 export default function MockInterviewDashboard({ 
   technologies, 
-  pastInterviews 
+  pastInterviews,
+  pastSystemDesignInterviews = []
 }: { 
   technologies: Tech[]; 
   pastInterviews: any[]; 
+  pastSystemDesignInterviews?: any[];
 }) {
   const router = useRouter();
+  const [activeMode, setActiveMode] = useState<"coding" | "system-design">("coding");
   const [selectedTech, setSelectedTech] = useState(technologies[0]?.name || "JavaScript");
   const [selectedDifficulty, setSelectedDifficulty] = useState("MEDIUM");
   const [loading, setLoading] = useState(false);
@@ -35,15 +39,25 @@ export default function MockInterviewDashboard({
   const handleStart = async () => {
     setLoading(true);
     try {
-      const res = await startMockInterview(selectedTech, selectedDifficulty as any);
-      if (res.error) {
-        toast.error(res.error);
-        return;
+      if (activeMode === "system-design") {
+        const res = await startSystemDesignInterview(selectedTech, selectedDifficulty as any);
+        if (res.error) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success("System design interview session ready!");
+        router.push(`/system-design-interview/${res.interviewId}`);
+      } else {
+        const res = await startMockInterview(selectedTech, selectedDifficulty as any);
+        if (res.error) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success("Mock interview session ready!");
+        router.push(`/mock-interview/${res.interviewId}`);
       }
-      toast.success("Mock interview session ready!");
-      router.push(`/mock-interview/${res.interviewId}`);
     } catch (err) {
-      toast.error("Failed to start mock interview");
+      toast.error("Failed to start interview session");
     } finally {
       setLoading(false);
     }
@@ -51,9 +65,39 @@ export default function MockInterviewDashboard({
 
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="space-y-8 max-w-5xl mx-auto">
-      <motion.div variants={fadeInUp}>
-        <h1 className="text-3xl font-bold">Mock Interview</h1>
-        <p className="text-muted-foreground mt-1">Practice with AI-powered interviews and get instant feedback</p>
+      <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Mock Interview</h1>
+          <p className="text-muted-foreground mt-1">Practice with AI-powered interviews and get instant feedback</p>
+        </div>
+
+        {/* Premium Mode Selector Tabs */}
+        <div className="flex bg-muted/40 backdrop-blur-md p-1.5 rounded-2xl border border-border/50 shrink-0">
+          <button
+            onClick={() => setActiveMode("coding")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer",
+              activeMode === "coding"
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Mic className="h-3.5 w-3.5" />
+            Coding & Q&A
+          </button>
+          <button
+            onClick={() => setActiveMode("system-design")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer",
+              activeMode === "system-design"
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            System Design
+          </button>
+        </div>
       </motion.div>
 
       {/* Setup Card */}
@@ -63,11 +107,22 @@ export default function MockInterviewDashboard({
           <div className="relative">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-3 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-lg">
-                <Mic className="h-6 w-6 text-white" />
+                {activeMode === "system-design" ? (
+                  <Layers className="h-6 w-6 text-white" />
+                ) : (
+                  <Mic className="h-6 w-6 text-white" />
+                )}
               </div>
               <div>
-                <h2 className="text-xl font-semibold">Start New Interview</h2>
-                <p className="text-sm text-muted-foreground">Configure your mock interview session</p>
+                <h2 className="text-xl font-semibold">
+                  {activeMode === "system-design" ? "Start System Design Prep" : "Start New Q&A Interview"}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {activeMode === "system-design" 
+                    ? "Interactive Excalidraw design board + AI architecture audit"
+                    : "Configure your mock interview session"
+                  }
+                </p>
               </div>
             </div>
 
@@ -93,7 +148,7 @@ export default function MockInterviewDashboard({
                       key={tech.id}
                       onClick={() => setSelectedTech(tech.name)}
                       className={cn(
-                        "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                        "px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer",
                         selectedTech === tech.name
                           ? "gradient-bg text-white shadow-lg shadow-primary/25"
                           : "glass hover:bg-muted text-muted-foreground"
@@ -115,7 +170,7 @@ export default function MockInterviewDashboard({
                     key={d}
                     onClick={() => setSelectedDifficulty(d)}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-sm font-medium transition-all border",
+                      "flex-1 py-3 rounded-xl text-sm font-medium transition-all border cursor-pointer",
                       selectedDifficulty === d
                         ? d === "EASY"
                           ? "bg-green-500/10 border-green-500 text-green-500"
@@ -135,14 +190,19 @@ export default function MockInterviewDashboard({
             <button
               onClick={handleStart}
               disabled={loading || technologies.length === 0}
-              className="w-full gradient-bg text-white font-semibold py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full gradient-bg text-white font-semibold py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Play className="h-5 w-5" />
               )}
-              {loading ? "Initializing Interview..." : "Start Mock Interview"}
+              {loading 
+                ? "Initializing Interview..." 
+                : activeMode === "system-design" 
+                  ? "Start System Design Interview" 
+                  : "Start Mock Interview"
+              }
             </button>
           </div>
         </GlassCard>
@@ -150,49 +210,97 @@ export default function MockInterviewDashboard({
 
       {/* Past Interviews */}
       <motion.div variants={fadeInUp}>
-        <h2 className="text-xl font-semibold mb-4">Past Interviews</h2>
-        {pastInterviews.length === 0 ? (
-          <GlassCard className="p-8 text-center text-muted-foreground">
-            No mock interviews completed yet. Start one above to test your skills!
-          </GlassCard>
-        ) : (
-          <div className="space-y-3">
-            {pastInterviews.map((interview) => (
-              <Link key={interview.id} href={`/mock-interview/${interview.id}/results`}>
-                <GlassCard hover className="flex items-center justify-between py-4 mb-3">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold border",
-                      interview.score === null 
-                        ? "bg-muted text-muted-foreground border-border" 
-                        : interview.score >= 85 
-                          ? "bg-green-500/10 text-green-500 border-green-500/20" 
-                          : interview.score >= 70 
-                            ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" 
-                            : "bg-red-500/10 text-red-500 border-red-500/20"
-                    )}>
-                      {interview.score !== null ? `${interview.score.toFixed(0)}` : "—"}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{interview.technology}</h3>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <span>{interview.difficulty}</span>
-                        <span>·</span>
-                        <span>{interview.totalQuestions} questions</span>
-                        <span>·</span>
-                        <span>
-                          {interview.completedAt 
-                            ? formatDistanceToNow(new Date(interview.completedAt), { addSuffix: true })
-                            : "In Progress"}
-                        </span>
+        <h2 className="text-xl font-semibold mb-4">
+          {activeMode === "system-design" ? "Past System Designs" : "Past Q&A Interviews"}
+        </h2>
+
+        {activeMode === "system-design" ? (
+          pastSystemDesignInterviews.length === 0 ? (
+            <GlassCard className="p-8 text-center text-muted-foreground">
+              No system design prep sessions started yet. Configure one above to build your architecture diagrams!
+            </GlassCard>
+          ) : (
+            <div className="space-y-3">
+              {pastSystemDesignInterviews.map((design) => (
+                <Link key={design.id} href={design.completedAt ? `/system-design-interview/${design.id}/results` : `/system-design-interview/${design.id}`}>
+                  <GlassCard hover className="flex items-center justify-between py-4 mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold border",
+                        design.score === null 
+                          ? "bg-muted text-muted-foreground border-border" 
+                          : design.score >= 85 
+                            ? "bg-green-500/10 text-green-500 border-green-500/20" 
+                            : design.score >= 70 
+                              ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" 
+                              : "bg-red-500/10 text-red-500 border-red-500/20"
+                      )}>
+                        {design.score !== null ? `${design.score.toFixed(0)}` : "—"}
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{design.technology} Design</h3>
+                        <p className="text-xs text-muted-foreground/80 line-clamp-1 max-w-[500px] mt-0.5">{design.question}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span className="capitalize">{design.difficulty.toLowerCase()}</span>
+                          <span>·</span>
+                          <span>
+                            {design.completedAt 
+                              ? formatDistanceToNow(new Date(design.completedAt), { addSuffix: true })
+                              : "Draft — Continue Editing"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </GlassCard>
-              </Link>
-            ))}
-          </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </GlassCard>
+                </Link>
+              ))}
+            </div>
+          )
+        ) : (
+          pastInterviews.length === 0 ? (
+            <GlassCard className="p-8 text-center text-muted-foreground">
+              No mock interviews completed yet. Start one above to test your skills!
+            </GlassCard>
+          ) : (
+            <div className="space-y-3">
+              {pastInterviews.map((interview) => (
+                <Link key={interview.id} href={`/mock-interview/${interview.id}/results`}>
+                  <GlassCard hover className="flex items-center justify-between py-4 mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold border",
+                        interview.score === null 
+                          ? "bg-muted text-muted-foreground border-border" 
+                          : interview.score >= 85 
+                            ? "bg-green-500/10 text-green-500 border-green-500/20" 
+                            : interview.score >= 70 
+                              ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" 
+                              : "bg-red-500/10 text-red-500 border-red-500/20"
+                      )}>
+                        {interview.score !== null ? `${interview.score.toFixed(0)}` : "—"}
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{interview.technology}</h3>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <span>{interview.difficulty}</span>
+                          <span>·</span>
+                          <span>{interview.totalQuestions} questions</span>
+                          <span>·</span>
+                          <span>
+                            {interview.completedAt 
+                              ? formatDistanceToNow(new Date(interview.completedAt), { addSuffix: true })
+                              : "In Progress"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </GlassCard>
+                </Link>
+              ))}
+            </div>
+          )
         )}
       </motion.div>
     </motion.div>

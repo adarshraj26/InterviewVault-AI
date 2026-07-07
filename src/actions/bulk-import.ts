@@ -272,6 +272,25 @@ function fallbackMarkdownParser(text: string): ParsedQuestion[] {
       currentAnswerLines = [];
     } else {
       if (currentQuestion) {
+        const tagMatch = trimmed.match(/^\*?\*?tags?\*?\*?\s*:\s*(.+)/i);
+        if (tagMatch) {
+          currentQuestion.tags = tagMatch[1].split(",").map(t => t.trim().replace(/\*+/g, "")).filter(Boolean);
+          continue;
+        }
+
+        const freqMatch = trimmed.match(/^\*?\*?frequency\*?\*?\s*:\s*(.+)/i);
+        if (freqMatch) {
+          const freqVal = freqMatch[1].replace(/⭐/g, "").trim().toLowerCase();
+          if (freqVal.includes("very common") || freqVal.includes("very_common")) {
+            currentQuestion.interviewFrequency = "VERY_COMMON";
+          } else if (freqVal.includes("rare")) {
+            currentQuestion.interviewFrequency = "RARE";
+          } else {
+            currentQuestion.interviewFrequency = "COMMON";
+          }
+          continue;
+        }
+
         let cleanLine = line;
         if (trimmed.startsWith("**Answer:**")) {
           cleanLine = trimmed.replace(/^\*\*Answer:\*\*\s*/i, "");

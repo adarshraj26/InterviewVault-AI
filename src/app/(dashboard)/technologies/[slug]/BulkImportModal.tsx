@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, FileText, GitBranch, FileArchive, Loader2, AlertTriangle, Check,
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
+import { RichTextEditor, MarkdownRenderer } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologies } from "@/actions/technologies";
 import {
@@ -68,6 +69,7 @@ interface TempParsedQuestion {
   codeExample: string | null;
   codeLanguage: string | null;
   difficulty: "EASY" | "MEDIUM" | "HARD";
+  interviewFrequency: "RARE" | "COMMON" | "VERY_COMMON";
   tags: string[];
   technology: string;
   duplicateId?: string;
@@ -112,6 +114,11 @@ export function BulkImportModal({
   // Parsed Questions state
   const [parsedQuestions, setParsedQuestions] = useState<TempParsedQuestion[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Per-question answer editing states
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
+  const [editorModes, setEditorModes] = useState<Record<string, "markdown" | "richtext">>({});
+  const [markdownPreviews, setMarkdownPreviews] = useState<Record<string, boolean>>({});
 
   // Import Progress & Done details
   const [isImporting, setIsImporting] = useState(false);
@@ -316,6 +323,7 @@ export function BulkImportModal({
           codeExample: q.codeExample || null,
           codeLanguage: q.codeLanguage || null,
           difficulty: (q.difficulty as any) || "MEDIUM",
+          interviewFrequency: (q.interviewFrequency as any) || "COMMON",
           tags: q.tags || ["INTERMEDIATE"],
           technology: q.technology || currentWorkspaceName || "General",
           duplicateId: isDuplicate ? bestMatch.id : undefined,
@@ -486,6 +494,16 @@ export function BulkImportModal({
     toast.success(`Set difficulty of all questions to ${difficulty}`);
   };
 
+  const handleBulkChangeFrequency = (interviewFrequency: "RARE" | "COMMON" | "VERY_COMMON") => {
+    setParsedQuestions(prev => prev.map(q => ({ ...q, interviewFrequency })));
+    toast.success(`Set frequency of all questions to ${interviewFrequency.replace("_", " ")}`);
+  };
+
+  const handleBulkChangeTags = (tags: string[]) => {
+    setParsedQuestions(prev => prev.map(q => ({ ...q, tags })));
+    toast.success(`Updated tags for all questions`);
+  };
+
   const handleBulkChangeWorkspace = (technology: string) => {
     if (!technology.trim()) return;
     setParsedQuestions(prev => prev.map(q => ({ ...q, technology })));
@@ -532,6 +550,7 @@ export function BulkImportModal({
         codeExample: q.codeExample,
         codeLanguage: q.codeLanguage,
         difficulty: q.difficulty,
+        interviewFrequency: q.interviewFrequency,
         tags: q.tags,
         technology: q.technology,
         duplicateId: q.duplicateId,
@@ -904,6 +923,36 @@ export function BulkImportModal({
                         <option value="HARD">Hard</option>
                       </select>
 
+                      {/* Bulk Frequency select */}
+                      <select
+                        onChange={(e) => {
+                          handleBulkChangeFrequency(e.target.value as any);
+                          e.target.value = "";
+                        }}
+                        defaultValue=""
+                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      >
+                        <option value="" disabled>Set Frequency</option>
+                        <option value="RARE">Rare</option>
+                        <option value="COMMON">Common</option>
+                        <option value="VERY_COMMON">Very Common</option>
+                      </select>
+
+                      {/* Bulk Tags button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = prompt("Enter tags separated by commas (e.g. Hooks, Performance):");
+                          if (val !== null) {
+                            const tagList = val.split(",").map(t => t.trim()).filter(Boolean);
+                            handleBulkChangeTags(tagList);
+                          }
+                        }}
+                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none hover:bg-muted/30 cursor-pointer text-muted-foreground hover:text-foreground font-semibold"
+                      >
+                        Set Tags
+                      </button>
+
                       {/* Bulk Duplicate Strategy */}
                       <select
                         onChange={(e) => {
@@ -943,16 +992,18 @@ export function BulkImportModal({
                             <th className="p-3 min-w-[200px]">Question Title</th>
                             <th className="p-3 w-40">Workspace</th>
                             <th className="p-3 w-28">Difficulty</th>
+                            <th className="p-3 w-28">Frequency</th>
+                            <th className="p-3 w-44">Tags</th>
                             <th className="p-3 min-w-[150px]">Duplicate Check</th>
-                            <th className="p-3 w-16 text-center">Delete</th>
+                            <th className="p-3 w-24 text-center">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40 font-medium">
                           {filteredParsed.map((q, idx) => {
                             const isDup = !!q.duplicateId;
                             return (
-                              <tr
-                                key={q.tempId}
+                              <Fragment key={q.tempId}>
+                                <tr
                                 className={cn(
                                   "hover:bg-muted/10 transition-colors",
                                   isDup && q.importStrategy === "skip" && "opacity-60 bg-amber-500/5",
@@ -1016,6 +1067,39 @@ export function BulkImportModal({
                                   </select>
                                 </td>
 
+                                {/* Frequency cell */}
+                                <td className="p-3">
+                                  <select
+                                    value={q.interviewFrequency}
+                                    onChange={(e) => handleUpdateField(q.tempId, "interviewFrequency", e.target.value as any)}
+                                    className={cn(
+                                      "w-full bg-black/20 rounded border border-border/60 px-2 py-1 text-xs focus:outline-none cursor-pointer font-bold",
+                                      q.interviewFrequency === "RARE" && "text-blue-400",
+                                      q.interviewFrequency === "COMMON" && "text-purple-400",
+                                      q.interviewFrequency === "VERY_COMMON" && "text-pink-400"
+                                    )}
+                                  >
+                                    <option value="RARE">Rare</option>
+                                    <option value="COMMON">Common</option>
+                                    <option value="VERY_COMMON">Very Common</option>
+                                  </select>
+                                </td>
+
+                                {/* Tags cell */}
+                                <td className="p-3">
+                                  <input
+                                    type="text"
+                                    value={q.tags.join(", ")}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const tagList = val.split(",").map(t => t.trim()).filter(Boolean);
+                                      handleUpdateField(q.tempId, "tags", tagList);
+                                    }}
+                                    placeholder="e.g. tag1, tag2"
+                                    className="w-full bg-black/20 rounded border border-border/60 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                                  />
+                                </td>
+
                                 {/* Duplicate Resolution Column */}
                                 <td className="p-3">
                                   {isDup ? (
@@ -1062,19 +1146,126 @@ export function BulkImportModal({
                                   )}
                                 </td>
 
-                                {/* Remove action */}
+                                {/* Actions Column (Edit + Delete) */}
                                 <td className="p-3 text-center">
-                                  <button
-                                    onClick={() => handleRemoveQuestion(q.tempId)}
-                                    className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
-                                    title="Remove from import"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedQuestionId(expandedQuestionId === q.tempId ? null : q.tempId)}
+                                      className={cn(
+                                        "p-1.5 rounded transition-colors cursor-pointer border",
+                                        expandedQuestionId === q.tempId
+                                          ? "bg-primary/20 border-primary/30 text-primary"
+                                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                      )}
+                                      title="Edit Answer Content"
+                                    >
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveQuestion(q.tempId)}
+                                      className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
+                                      title="Remove from import"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
-                            );
-                          })}
+                              {expandedQuestionId === q.tempId && (
+                                <tr className="bg-black/20 border-b border-border/60">
+                                  <td colSpan={8} className="p-6 bg-black/30">
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold text-foreground">Edit Answer for "{q.title}"</h4>
+                                        <div className="flex items-center gap-2">
+                                          {/* Editor mode selector */}
+                                          <div className="flex bg-black/40 p-0.5 rounded-lg border border-border/80">
+                                            {[
+                                              { id: "markdown", label: "Markdown (.md)" },
+                                              { id: "richtext", label: "Rich Text Editor" },
+                                            ].map((mode) => {
+                                              const isSelected = (editorModes[q.tempId] || "markdown") === mode.id;
+                                              return (
+                                                <button
+                                                  key={mode.id}
+                                                  type="button"
+                                                  onClick={() => setEditorModes(prev => ({ ...prev, [q.tempId]: mode.id as any }))}
+                                                  className={cn(
+                                                    "px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                                                    isSelected
+                                                      ? "gradient-bg text-white shadow"
+                                                      : "text-muted-foreground hover:text-foreground"
+                                                  )}
+                                                >
+                                                  {mode.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                          
+                                          {/* Markdown Preview toggle (only shown in markdown mode) */}
+                                          {(editorModes[q.tempId] || "markdown") === "markdown" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setMarkdownPreviews(prev => ({ ...prev, [q.tempId]: !prev[q.tempId] }))}
+                                              className={cn(
+                                                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer",
+                                                markdownPreviews[q.tempId]
+                                                  ? "bg-primary/10 border-primary/20 text-primary"
+                                                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                              )}
+                                            >
+                                              {markdownPreviews[q.tempId] ? "Edit" : "Preview"}
+                                            </button>
+                                          )}
+
+                                          {/* Collapse button */}
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedQuestionId(null)}
+                                            className="text-xs font-bold text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors cursor-pointer"
+                                          >
+                                            Close
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Editor Area */}
+                                      {(editorModes[q.tempId] || "markdown") === "markdown" ? (
+                                        markdownPreviews[q.tempId] ? (
+                                          <div className="min-h-[180px] max-h-[400px] overflow-y-auto rounded-xl border border-border bg-black/25 p-4 text-sm leading-relaxed">
+                                            {q.answer.trim() ? (
+                                              <MarkdownRenderer content={q.answer} />
+                                            ) : (
+                                              <p className="text-muted-foreground/50 italic">Nothing to preview yet...</p>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <textarea
+                                            value={q.answer}
+                                            onChange={(e) => handleUpdateField(q.tempId, "answer", e.target.value)}
+                                            placeholder="Write answer in Markdown format here..."
+                                            className="w-full min-h-[180px] rounded-xl border border-border bg-black/20 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all resize-y leading-relaxed text-foreground"
+                                          />
+                                        )
+                                      ) : (
+                                        <div className="bg-black/25 rounded-xl border border-border overflow-hidden">
+                                          <RichTextEditor
+                                            value={q.answer}
+                                            onChange={(html) => handleUpdateField(q.tempId, "answer", html)}
+                                            placeholder="Provide the comprehensive answer..."
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          );
+                        })}
                         </tbody>
                       </table>
                     </div>

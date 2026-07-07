@@ -10,3 +10,5 @@ export { ConfirmDeleteButton } from "./confirm-delete";
 export { ShareBar, ShareModal } from "./share-modal";
 export { DailyChallenge } from "./daily-challenge";
 export * from "./footer";
+export { GlobalSearchModal } from "./global-search";
+

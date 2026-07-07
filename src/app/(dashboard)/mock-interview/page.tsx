@@ -40,11 +40,18 @@ export default async function MockInterviewPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Fetch past system design interviews
+  const pastSystemDesignInterviews = await db.systemDesignInterview.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <div className="container py-8">
       <MockInterviewDashboard
         technologies={technologies}
         pastInterviews={pastInterviews}
+        pastSystemDesignInterviews={pastSystemDesignInterviews}
       />
     </div>
   );
