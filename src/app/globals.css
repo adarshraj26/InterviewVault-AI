@@ -1799,4 +1799,17 @@ input[type="submit"] {
   html {
     scroll-behavior: auto !important; /* lets touch momentum behave naturally */
   }
+  
+  /* Disable heavy blurred background animations on mobile to free up CPU/main thread */
+  .animate-blob {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* Force hardware acceleration on animate-blob for desktop browsers */
+.animate-blob {
+  will-change: transform, border-radius;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }

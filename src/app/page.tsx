@@ -217,8 +217,8 @@ export default function LandingPage() {
   const topicsRef = useRef<HTMLDivElement>(null);
   const featuredRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
-  const isTopicsInView = useInView(topicsRef, { once: true, margin: "-80px" });
-  const isFeaturedInView = useInView(featuredRef, { once: true, margin: "-80px" });
+  const isTopicsInView = useInView(topicsRef, { once: true, margin: "-10px" });
+  const isFeaturedInView = useInView(featuredRef, { once: true, margin: "-10px" });
 
   const scrollToPricing = () => {
     pricingRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -678,7 +678,7 @@ export default function LandingPage() {
             className="text-center mb-16 max-w-2xl mx-auto"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp}>
@@ -700,7 +700,7 @@ export default function LandingPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={staggerContainer}
           >
             {[
@@ -744,7 +744,7 @@ export default function LandingPage() {
             className="text-center mb-16 max-w-2xl mx-auto"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp}>
@@ -766,7 +766,7 @@ export default function LandingPage() {
             className="grid grid-cols-1 md:grid-cols-3 gap-8"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={staggerContainer}
           >
             {HOW_IT_WORKS.map((item, idx) => {
@@ -809,7 +809,7 @@ export default function LandingPage() {
             className="text-center mb-16 max-w-2xl mx-auto"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp}>
@@ -831,7 +831,7 @@ export default function LandingPage() {
             className="max-w-2xl mx-auto"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-10px" }}
             variants={fadeInUp}
           >
             {/* Pricing card with spinning border */}
