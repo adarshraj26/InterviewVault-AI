@@ -49,6 +49,13 @@ enum SubscriptionPlan {
   PRO
 }
 
+enum AvatarType {
+  GOOGLE
+  CUSTOM_UPLOAD
+  AVATAR_LIBRARY
+  DEFAULT
+}
+
 // ── Auth Models (NextAuth) ─────────────────────────────────
 
 model User {
@@ -56,11 +63,17 @@ model User {
   name           String?
   email          String    @unique
   emailVerified  DateTime?
-  image          String?
+  image          String?   // Active resolved image (kept for NextAuth adapter compatibility)
   hashedPassword String?
   role           UserRole  @default(USER)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  // ── Profile Picture Management ──────────────────────────
+  profileImageUrl  String?    // Custom uploaded photo URL (UploadThing CDN)
+  googleImageUrl   String?    // Captured Google profile picture at sign-in time
+  selectedAvatarId String?    // DiceBear seed when avatarType = AVATAR_LIBRARY
+  avatarType       AvatarType @default(DEFAULT)
 
   accounts       Account[]
   sessions       Session[]

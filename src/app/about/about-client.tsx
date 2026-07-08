@@ -19,10 +19,13 @@ import {
   ShieldAlert,
   ArrowRight,
   Sparkles,
+  Menu,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { Logo, ThemeToggle, Footer } from "@/components/shared";
 import { cn } from "@/lib/utils";
+
 
 // ── Animation Variants ─────────────────────────────────────
 const fadeInUp = {
@@ -181,6 +184,7 @@ function TerminalHero() {
 // ── Main About Page Component ────────────────────────────────
 export default function AboutPage({ counts }: { counts: { react: number; javascript: number } }) {
   const [activeTopic, setActiveTopic] = useState<string>("react");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const topicsWithData = TOPICS.map((topic) => {
     let countStr = "Coming Soon";
@@ -208,7 +212,9 @@ export default function AboutPage({ counts }: { counts: { react: number; javascr
       <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/60 border-b border-border/40">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-6">
+          
+          {/* Desktop Navigation Links */}
+          <div className="hidden md:flex items-center gap-6">
             <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Home
             </Link>
@@ -220,8 +226,57 @@ export default function AboutPage({ counts }: { counts: { react: number; javascr
             </Link>
             <ThemeToggle />
           </div>
+
+          {/* Mobile Navigation Controls */}
+          <div className="flex md:hidden items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-1.5 rounded-xl border border-border bg-card/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Navigation */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-b border-border/40 bg-background/95 backdrop-blur-2xl overflow-hidden"
+            >
+              <div className="px-4 py-4 flex flex-col gap-2">
+                <Link
+                  href="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-2.5 rounded-xl hover:bg-muted/80 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-2.5 rounded-xl hover:bg-muted/80 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-2.5 rounded-xl hover:bg-muted/80 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  Contact
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
+
 
       <main className="flex-grow pb-32">
         {/* ── Section 1: Hero Terminal ───────────────────────────────── */}

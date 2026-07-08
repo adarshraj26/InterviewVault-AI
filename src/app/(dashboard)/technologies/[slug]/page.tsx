@@ -1350,12 +1350,26 @@ export default function TechnologyWorkspacePage() {
                     </div>
 
                     {/* Inline edit/delete actions */}
-                    <div className="flex items-center justify-between pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-between pt-1 transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100">
                       <span className="text-[10px] text-primary/70 font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                         Read full article <ArrowRight className="h-3 w-3" />
                       </span>
                       {!isReadOnly && (
                         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          {/* Share to Community toggle */}
+                          <button
+                            onClick={() => handleTogglePublic(q)}
+                            className={cn(
+                              "p-1 rounded bg-black/30 border transition-colors cursor-pointer",
+                              q.isPublic
+                                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                                : "border-border text-muted-foreground hover:text-emerald-500 hover:border-emerald-500/40"
+                            )}
+                            title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
+                          >
+                            {q.isPublic ? <Globe className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          </button>
+
                           <button
                             onClick={() => handleStartEditQuestion(q)}
                             className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
@@ -1373,6 +1387,7 @@ export default function TechnologyWorkspacePage() {
                         </div>
                       )}
                     </div>
+
                   </div>
                 </GlassCard>
               </motion.div>
@@ -2005,7 +2020,7 @@ export default function TechnologyWorkspacePage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={() => setIsPracticeOpen(false)}
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] cursor-pointer"
+              className="fixed inset-0 z-[240] bg-black/40 backdrop-blur-[2px] cursor-pointer"
             />
 
             {/* Sliding Drawer */}
@@ -2015,8 +2030,9 @@ export default function TechnologyWorkspacePage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 35 }}
-              className="fixed right-0 top-0 h-full z-40 w-full max-w-md flex flex-col border-l border-border/60 bg-[#070b14]/95 backdrop-blur-2xl shadow-2xl shadow-black/50"
+              className="fixed right-0 top-0 h-full z-[250] w-full max-w-md flex flex-col border-l border-border/60 bg-[#070b14]/95 backdrop-blur-2xl shadow-2xl shadow-black/50"
             >
+
               {/* Drawer Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
                 <div>

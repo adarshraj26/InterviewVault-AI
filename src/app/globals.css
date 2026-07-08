@@ -1769,3 +1769,34 @@ mark.md-highlight {
     font-size: 0.82rem;
   }
 }
+
+/* ── Mobile & Touch Device Interaction Optimizations ── */
+@media (hover: none) and (pointer: coarse) {
+  /* Prevent sticky hover effects on touch screens */
+  .group:hover, 
+  button:hover, 
+  a:hover {
+    transform: none !important;
+  }
+}
+
+/* Eliminate 300ms tap delay for instant button clicks on mobile */
+a, 
+button, 
+select, 
+input[type="submit"] {
+  touch-action: manipulation;
+}
+
+/* Natural momentum scrolling for custom overflow panels on touch devices */
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optimize smooth scroll behaviour on mobile to prevent transition lag */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: auto !important; /* lets touch momentum behave naturally */
+  }
+}

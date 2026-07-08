@@ -25,9 +25,12 @@ import {
   Server,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Logo, ThemeToggle, AnimatedCounter, Footer } from "@/components/shared";
+import { Logo, ThemeToggle, AnimatedCounter, Footer, UserAvatar } from "@/components/shared";
+import { getRealtimeStats } from "@/actions/stats";
+
+
 import { FREE_FEATURES } from "@/constants";
 import { cn } from "@/lib/utils";
 
@@ -162,17 +165,18 @@ const HOW_IT_WORKS = [
     iconColor: "text-indigo-400",
     bgColor: "bg-indigo-500/10",
     borderColor: "border-indigo-500/20",
-    title: "Upload Your Resume",
-    description: "Simply upload your PDF or DOCX resume. Our AI instantly extracts skills, technologies, and experience levels to build your personalized workspace.",
+    title: "Import Your Profile",
+    description: "Upload your resume to extract key skills and background. The platform dynamically instantiates tailored practice modules tailored to your target roles.",
   },
+
   {
     step: "02",
-    icon: Brain,
-    iconColor: "text-purple-400",
-    bgColor: "bg-purple-500/10",
-    borderColor: "border-purple-500/20",
-    title: "AI Generates Questions",
-    description: "Our AI creates personalized interview questions for each detected technology, organized by difficulty, frequency, and interview stage.",
+    icon: Server,
+    iconColor: "text-emerald-400",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
+    title: "System Design Canvas",
+    description: "Design complex architectures on our interactive board. Receive real-time AI suggestions on trade-offs, bottlenecks, and scalability choices.",
   },
   {
     step: "03",
@@ -185,10 +189,30 @@ const HOW_IT_WORKS = [
   },
 ];
 
+
 // ── Page Component ─────────────────────────────────────────
 export default function LandingPage() {
   const { data: session, status } = useSession();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [stats, setStats] = useState<{
+    questions: number;
+    technologies: number;
+    users: number;
+    successRate: number;
+    slugCounts: Record<string, number>;
+  }>({
+    questions: 5000,
+    technologies: 50,
+    users: 1200,
+    successRate: 95,
+    slugCounts: { javascript: 80 },
+  });
+  
+  useEffect(() => {
+    getRealtimeStats().then(setStats).catch(() => {});
+  }, []);
+
+
   const featuresRef = useRef<HTMLDivElement>(null);
   const topicsRef = useRef<HTMLDivElement>(null);
   const featuredRef = useRef<HTMLDivElement>(null);
@@ -201,6 +225,7 @@ export default function LandingPage() {
   };
 
   const handleSignOut = async () => {
+
     await signOut({ redirect: false });
     window.location.href = "/login";
   };
@@ -276,15 +301,14 @@ export default function LandingPage() {
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-card border border-border shadow-sm hover:border-primary/50 transition-colors"
                   >
-                    {session?.user?.image ? (
-                      <img src={session.user.image} alt="User" className="w-8 h-8 rounded-full object-cover border border-border" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-inner">
-                        {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-                    )}
+                    <UserAvatar
+                      user={session?.user}
+                      size="xs"
+                      className="w-8 h-8 rounded-full border border-border"
+                    />
                     <span className="text-sm font-medium hidden sm:block truncate max-w-[100px]">{session?.user?.name || "User"}</span>
                   </button>
+
 
                   {/* Dropdown Menu */}
                   {dropdownOpen && (
@@ -376,8 +400,8 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <motion.div variants={fadeInUp} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 px-4 sm:px-0">
               {/* Primary CTA with spinning border */}
-              <Link href="/register" className="group relative w-full sm:w-auto">
-                <button className="relative w-full sm:w-auto px-8 py-4 gradient-bg text-white font-semibold rounded-xl text-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/30 cursor-pointer overflow-hidden active:scale-95">
+              <Link href="/register" className="group relative w-fit sm:w-auto">
+                <button className="relative w-fit sm:w-auto px-8 py-4 gradient-bg text-white font-semibold rounded-xl text-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/30 cursor-pointer overflow-hidden active:scale-95">
                   {/* Spinning conic-gradient border on hover */}
                   <div className="absolute inset-0 rounded-xl p-[1.5px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 overflow-hidden pointer-events-none z-0">
                     <div
@@ -394,12 +418,13 @@ export default function LandingPage() {
               </Link>
 
               {/* Secondary CTA */}
-              <Link href="#topics">
-                <button className="w-full sm:w-auto px-8 py-4 bg-card/60 border border-border hover:border-foreground/30 text-foreground hover:bg-muted/50 font-semibold rounded-xl text-sm transition-all duration-300 hover:-translate-y-0.5 cursor-pointer backdrop-blur-sm">
+              <Link href="#topics" className="w-fit sm:w-auto">
+                <button className="w-fit sm:w-auto px-8 py-4 bg-card/60 border border-border hover:border-foreground/30 text-foreground hover:bg-muted/50 font-semibold rounded-xl text-sm transition-all duration-300 hover:-translate-y-0.5 cursor-pointer backdrop-blur-sm">
                   Explore Topics
                 </button>
               </Link>
             </motion.div>
+
 
             {/* Stats Row */}
             <motion.div
@@ -407,11 +432,12 @@ export default function LandingPage() {
               className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-2xl mx-auto"
             >
               {[
-                { value: 5000, label: "Questions", suffix: "+" },
-                { value: 50, label: "Technologies", suffix: "+" },
-                { value: 1200, label: "Active Users", suffix: "+" },
-                { value: 95, label: "Success Rate", suffix: "%" },
+                { value: stats.questions, label: "Questions", suffix: "+" },
+                { value: stats.technologies, label: "Technologies", suffix: "+" },
+                { value: stats.users, label: "Active Users", suffix: "+" },
+                { value: stats.successRate, label: "Success Rate", suffix: "%" },
               ].map((stat) => (
+
                 <div key={stat.label} className="text-center">
                   <div className="text-2xl sm:text-3xl font-extrabold gradient-text">
                     <AnimatedCounter value={stat.value} suffix={stat.suffix} />
@@ -457,7 +483,10 @@ export default function LandingPage() {
           >
             {TOPICS.map((topic) => {
               const Icon = topic.icon;
-              const isComingSoon = topic.id !== "javascript";
+              const qCount = stats.slugCounts[topic.id.toLowerCase().trim()] || 0;
+              const isComingSoon = qCount === 0 && topic.id !== "javascript";
+              const displayCount = qCount > 0 ? `${qCount}+` : topic.count;
+
               return (
                 <motion.div key={topic.id} variants={fadeInUp}>
                   <Link
@@ -492,7 +521,7 @@ export default function LandingPage() {
                         <div className="flex items-center gap-2">
                           {!isComingSoon ? (
                             <span className="text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full border bg-muted/50 text-muted-foreground border-border uppercase">
-                              {topic.count} Questions
+                              {displayCount} Questions
                             </span>
                           ) : (
                             <span className="text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-1.25 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -518,6 +547,7 @@ export default function LandingPage() {
                 </motion.div>
               );
             })}
+
           </motion.div>
 
           {/* View All Button */}
@@ -573,8 +603,11 @@ export default function LandingPage() {
             variants={staggerContainer}
           >
             {FEATURED_QUESTIONS.map((q, i) => {
-              const isComingSoon = q.category.toLowerCase() !== "javascript";
+              const categoryKey = q.category.toLowerCase().trim();
+              const qCount = stats.slugCounts[categoryKey] || 0;
+              const isComingSoon = qCount === 0 && categoryKey !== "javascript";
               return (
+
                 <motion.div key={i} variants={fadeInUp}>
                   <Link
                     href={isComingSoon ? "#" : "/register"}
@@ -671,7 +704,9 @@ export default function LandingPage() {
             variants={staggerContainer}
           >
             {[
-              { icon: FileSearch, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", title: "AI Resume Parser", desc: "Upload your resume and our AI extracts skills, technologies, and experience levels to build your personalized workspace." },
+              { icon: Layers, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", title: "System Design Canvas", desc: "Design complex microservice layouts and database tables visually on our board. Get instant AI suggestions on architectural bottlenecks." },
+
+
               { icon: Brain, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", title: "Smart Question Bank", desc: "Curated interview questions organized by technology, difficulty, and frequency. Add your own or let AI generate them." },
               { icon: Mic, color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", title: "Mock Interviews", desc: "Practice with AI-powered mock interviews. Get instant scoring on accuracy, completeness, and technical communication." },
               { icon: RotateCcw, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", title: "Spaced Repetition", desc: "Never forget what you've learned. Our smart flashcard system schedules reviews at optimal intervals using the SM-2 algorithm." },

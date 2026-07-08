@@ -23,6 +23,7 @@ export function AnimatedCounter({
   const hasAnimated = useRef(false);
 
   useEffect(() => {
+    hasAnimated.current = false;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimated.current) {

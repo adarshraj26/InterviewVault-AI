@@ -11,4 +11,5 @@ export { ShareBar, ShareModal } from "./share-modal";
 export { DailyChallenge } from "./daily-challenge";
 export * from "./footer";
 export { GlobalSearchModal } from "./global-search";
-
+export { UserAvatar } from "./UserAvatar";
+export type { UserAvatarUser } from "./UserAvatar";

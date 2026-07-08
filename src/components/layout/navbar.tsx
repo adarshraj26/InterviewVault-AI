@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Menu, Search, Bell, X, Trash2, Check, Info, Clock } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -265,15 +267,14 @@ export function Navbar({ onMenuClick, sidebarCollapsed, onSearchClick }: NavbarP
             <button
               id="user-menu"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-sm font-bold ml-1 shadow-lg shadow-primary/20 cursor-pointer overflow-hidden border border-border"
+              className="ml-1 cursor-pointer"
             >
-              {session?.user?.image ? (
-                <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full gradient-bg flex items-center justify-center">
-                  {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
-                </div>
-              )}
+              <UserAvatar
+                user={session?.user as any}
+                size="sm"
+                ring
+                className="shadow-lg shadow-primary/20"
+              />
             </button>
 
             {/* Dropdown */}
