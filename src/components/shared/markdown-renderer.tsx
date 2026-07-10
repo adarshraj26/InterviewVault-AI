@@ -234,6 +234,13 @@ const CALLOUT_PLACEHOLDER = "IVAULTCALLOUT";
 function preprocessMarkdown(raw: string, calloutStore: typeof _calloutStore): string {
   let text = raw;
 
+  // Temporarily extract fenced code blocks to prevent preprocess replacements inside them
+  const tempCodeBlocks: string[] = [];
+  text = text.replace(/^(```[a-zA-Z0-9+#-]*\s*\n[\s\S]*?\n```)$/gm, (match) => {
+    tempCodeBlocks.push(match);
+    return `__IVAULT_TEMP_CODE_BLOCK_${tempCodeBlocks.length - 1}__`;
+  });
+
   // 1. ==highlight== → <mark class="md-highlight">text</mark>
   text = text.replace(/==([^=]+)==/g, '<mark class="md-highlight">$1</mark>');
 
@@ -290,6 +297,18 @@ function preprocessMarkdown(raw: string, calloutStore: typeof _calloutStore): st
       return `<${CALLOUT_PLACEHOLDER} data-idx="${idx}"></${CALLOUT_PLACEHOLDER}>`;
     }
   );
+
+  // Restore the temporarily extracted fenced code blocks in both text and calloutStore bodies
+  const restorePlaceholder = (str: string) => {
+    return str.replace(/__IVAULT_TEMP_CODE_BLOCK_(\d+)__/g, (_, idx) => {
+      return tempCodeBlocks[parseInt(idx, 10)];
+    });
+  };
+
+  text = restorePlaceholder(text);
+  calloutStore.forEach((c) => {
+    c.body = restorePlaceholder(c.body);
+  });
 
   return text;
 }
