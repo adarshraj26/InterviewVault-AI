@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
+  ChevronDown,
   Code2,
   Copy,
   Plus,
@@ -163,6 +164,90 @@ function highlightCode(code: string, language: string): string {
     
     return match;
   });
+}
+
+// ── Custom Premium Select Component ───────────────────────────
+interface CustomSelectOption<T> {
+  value: T;
+  label: string;
+}
+
+interface CustomSelectProps<T> {
+  value: T;
+  onChange: (value: T) => void;
+  options: CustomSelectOption<T>[];
+  className?: string;
+}
+
+function CustomSelect<T extends string | number>({
+  value,
+  onChange,
+  options,
+  className = "",
+}: CustomSelectProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClose = () => setIsOpen(false);
+    window.addEventListener("click", handleClose);
+    return () => window.removeEventListener("click", handleClose);
+  }, [isOpen]);
+
+  return (
+    <div className={cn("relative inline-block text-left select-none", className)} onClick={(e) => e.stopPropagation()}>
+      <div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center justify-between w-full gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:border-primary/40 hover:bg-muted/30 focus:outline-none transition-all cursor-pointer text-foreground shadow-sm active:scale-[0.98]"
+        >
+          <span className="truncate">{selectedOption?.label || value}</span>
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 shrink-0", isOpen && "transform rotate-180")}
+          />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="absolute left-0 z-[150] mt-2 w-full min-w-[140px] origin-top-left rounded-xl border border-border bg-popover/90 dark:bg-card/90 backdrop-blur-xl p-1.5 shadow-xl outline-none"
+          >
+            <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
+              {options.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setIsOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all cursor-pointer",
+                      isSelected
+                        ? "bg-primary/10 text-primary border-l-2 border-primary"
+                        : "text-foreground hover:bg-muted/70"
+                    )}
+                  >
+                    <span className="truncate pr-2">{opt.label}</span>
+                    {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default function TechnologyWorkspacePage() {
@@ -1095,26 +1180,20 @@ export default function TechnologyWorkspacePage() {
           {/* Show X per page */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider text-[10px]">Show</span>
-            <select
+            <CustomSelect
               value={pageSize}
-              onChange={(e) => {
-                const val = e.target.value;
-                setPageSize(val === "all" ? "all" : Number(val));
+              onChange={(val) => {
+                setPageSize(val);
                 setCurrentPage(1);
               }}
-              className="rounded-xl border border-border bg-card pl-3 pr-8 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none relative text-foreground"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.75rem center',
-                backgroundSize: '1rem',
-              }}
-            >
-              <option value={9} className="bg-card text-foreground">9 per page</option>
-              <option value={18} className="bg-card text-foreground">18 per page</option>
-              <option value={27} className="bg-card text-foreground">27 per page</option>
-              <option value="all" className="bg-card text-foreground">All questions</option>
-            </select>
+              options={[
+                { value: 9, label: "9 per page" },
+                { value: 18, label: "18 per page" },
+                { value: 27, label: "27 per page" },
+                { value: "all", label: "All questions" },
+              ]}
+              className="w-36"
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -1166,24 +1245,19 @@ export default function TechnologyWorkspacePage() {
           />
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <select
+          <CustomSelect
             value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="rounded-xl border border-border bg-card pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer appearance-none relative text-foreground"
-            style={{
-              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 0.75rem center',
-              backgroundSize: '1rem',
-            }}
-          >
-            <option value="default" className="bg-card text-foreground">Default Sorting</option>
-            <option value="newest" className="bg-card text-foreground">Newest First</option>
-            <option value="oldest" className="bg-card text-foreground">Oldest First</option>
-            <option value="title-asc" className="bg-card text-foreground">Title (A-Z)</option>
-            <option value="difficulty-asc" className="bg-card text-foreground">Difficulty (Easy to Hard)</option>
-            <option value="difficulty-desc" className="bg-card text-foreground">Difficulty (Hard to Easy)</option>
-          </select>
+            onChange={(val) => setSortOption(val)}
+            options={[
+              { value: "default", label: "Default Sorting" },
+              { value: "newest", label: "Newest First" },
+              { value: "oldest", label: "Oldest First" },
+              { value: "title-asc", label: "Title (A-Z)" },
+              { value: "difficulty-asc", label: "Difficulty (Easy to Hard)" },
+              { value: "difficulty-desc", label: "Difficulty (Hard to Easy)" },
+            ]}
+            className="w-56"
+          />
 
           {/* Multi-select toggle */}
           {questions.length > 0 && (
