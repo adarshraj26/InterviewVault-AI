@@ -1017,7 +1017,7 @@ export default function TechnologyWorkspacePage() {
                         value={tagSearchQuery}
                         onChange={(e) => setTagSearchQuery(e.target.value)}
                         placeholder="Search tags..."
-                        className="w-full rounded-lg border border-border/50 bg-[#0f1422] pl-8 pr-3 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-primary focus:border-transparent"
+                        className="w-full rounded-lg border border-border/50 bg-card pl-8 pr-3 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-primary focus:border-transparent"
                       />
                       {tagSearchQuery && (
                         <button
@@ -1102,7 +1102,7 @@ export default function TechnologyWorkspacePage() {
                 setPageSize(val === "all" ? "all" : Number(val));
                 setCurrentPage(1);
               }}
-              className="rounded-xl border border-border bg-[#0f1422] pl-3 pr-8 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none relative"
+              className="rounded-xl border border-border bg-card pl-3 pr-8 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none relative text-foreground"
               style={{
                 backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -1110,10 +1110,10 @@ export default function TechnologyWorkspacePage() {
                 backgroundSize: '1rem',
               }}
             >
-              <option value={9} className="bg-[#0f1422]">9 per page</option>
-              <option value={18} className="bg-[#0f1422]">18 per page</option>
-              <option value={27} className="bg-[#0f1422]">27 per page</option>
-              <option value="all" className="bg-[#0f1422]">All questions</option>
+              <option value={9} className="bg-card text-foreground">9 per page</option>
+              <option value={18} className="bg-card text-foreground">18 per page</option>
+              <option value={27} className="bg-card text-foreground">27 per page</option>
+              <option value="all" className="bg-card text-foreground">All questions</option>
             </select>
           </div>
 
@@ -1169,7 +1169,7 @@ export default function TechnologyWorkspacePage() {
           <select
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
-            className="rounded-xl border border-border bg-card pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer appearance-none relative"
+            className="rounded-xl border border-border bg-card pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer appearance-none relative text-foreground"
             style={{
               backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
               backgroundRepeat: 'no-repeat',
@@ -1177,12 +1177,12 @@ export default function TechnologyWorkspacePage() {
               backgroundSize: '1rem',
             }}
           >
-            <option value="default" className="bg-[#0f1422]">Default Sorting</option>
-            <option value="newest" className="bg-[#0f1422]">Newest First</option>
-            <option value="oldest" className="bg-[#0f1422]">Oldest First</option>
-            <option value="title-asc" className="bg-[#0f1422]">Title (A-Z)</option>
-            <option value="difficulty-asc" className="bg-[#0f1422]">Difficulty (Easy to Hard)</option>
-            <option value="difficulty-desc" className="bg-[#0f1422]">Difficulty (Hard to Easy)</option>
+            <option value="default" className="bg-card text-foreground">Default Sorting</option>
+            <option value="newest" className="bg-card text-foreground">Newest First</option>
+            <option value="oldest" className="bg-card text-foreground">Oldest First</option>
+            <option value="title-asc" className="bg-card text-foreground">Title (A-Z)</option>
+            <option value="difficulty-asc" className="bg-card text-foreground">Difficulty (Easy to Hard)</option>
+            <option value="difficulty-desc" className="bg-card text-foreground">Difficulty (Hard to Easy)</option>
           </select>
 
           {/* Multi-select toggle */}
@@ -1714,16 +1714,16 @@ export default function TechnologyWorkspacePage() {
                     <select
                       value={codeLanguage}
                       onChange={(e) => setCodeLanguage(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
                     >
-                      <option value="javascript" className="bg-[#0f1422] text-foreground">JavaScript</option>
-                      <option value="typescript" className="bg-[#0f1422] text-foreground">TypeScript</option>
-                      <option value="python" className="bg-[#0f1422] text-foreground">Python</option>
-                      <option value="sql" className="bg-[#0f1422] text-foreground">SQL</option>
-                      <option value="html" className="bg-[#0f1422] text-foreground">HTML</option>
-                      <option value="css" className="bg-[#0f1422] text-foreground">CSS</option>
-                      <option value="java" className="bg-[#0f1422] text-foreground">Java</option>
-                      <option value="cpp" className="bg-[#0f1422] text-foreground">C++</option>
+                      <option value="javascript" className="bg-card text-foreground">JavaScript</option>
+                      <option value="typescript" className="bg-card text-foreground">TypeScript</option>
+                      <option value="python" className="bg-card text-foreground">Python</option>
+                      <option value="sql" className="bg-card text-foreground">SQL</option>
+                      <option value="html" className="bg-card text-foreground">HTML</option>
+                      <option value="css" className="bg-card text-foreground">CSS</option>
+                      <option value="java" className="bg-card text-foreground">Java</option>
+                      <option value="cpp" className="bg-card text-foreground">C++</option>
                     </select>
                   </div>
                 )}
@@ -1733,11 +1733,11 @@ export default function TechnologyWorkspacePage() {
                     <select
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
                     >
-                      <option value="EASY" className="bg-[#0f1422] text-foreground">Easy</option>
-                      <option value="MEDIUM" className="bg-[#0f1422] text-foreground">Medium</option>
-                      <option value="HARD" className="bg-[#0f1422] text-foreground">Hard</option>
+                      <option value="EASY" className="bg-card text-foreground">Easy</option>
+                      <option value="MEDIUM" className="bg-card text-foreground">Medium</option>
+                      <option value="HARD" className="bg-card text-foreground">Hard</option>
                     </select>
                   </div>
                   <div>
@@ -1745,11 +1745,11 @@ export default function TechnologyWorkspacePage() {
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-[#0f1422] px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
+                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
                     >
-                      <option value="RARE" className="bg-[#0f1422] text-foreground">Rare</option>
-                      <option value="COMMON" className="bg-[#0f1422] text-foreground">Common</option>
-                      <option value="VERY_COMMON" className="bg-[#0f1422] text-foreground">Very Common</option>
+                      <option value="RARE" className="bg-card text-foreground">Rare</option>
+                      <option value="COMMON" className="bg-card text-foreground">Common</option>
+                      <option value="VERY_COMMON" className="bg-card text-foreground">Very Common</option>
                     </select>
                   </div>
                 </div>
