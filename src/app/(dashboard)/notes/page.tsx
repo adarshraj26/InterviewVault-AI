@@ -20,11 +20,16 @@ export default async function NotesPage() {
     orderBy: { updatedAt: "desc" },
   });
 
-  // Fetch user technologies for selection
+  // Fetch all technologies: user's own + admin global templates
   const technologies = await db.technology.findMany({
-    where: { userId: session.user.id },
+    where: {
+      OR: [
+        { userId: session.user.id },
+        { isGlobalTemplate: true },
+      ],
+    },
     select: { id: true, name: true },
-    orderBy: { order: "asc" },
+    orderBy: { name: "asc" },
   });
 
   return (

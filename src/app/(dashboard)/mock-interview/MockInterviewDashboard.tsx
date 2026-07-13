@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mic, Play, ChevronRight, Loader2, Layers, Cpu } from "lucide-react";
+import { Mic, Play, ChevronRight, Loader2, Layers, Cpu, Lock } from "lucide-react";
 import { GlassCard } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { startMockInterview } from "@/actions/mockInterviews";
@@ -86,16 +86,13 @@ export default function MockInterviewDashboard({
             Coding & Q&A
           </button>
           <button
-            onClick={() => setActiveMode("system-design")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer",
-              activeMode === "system-design"
-                ? "bg-primary text-primary-foreground shadow-lg"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            onClick={() => toast.info("System Design Mock Interviews are coming soon!")}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-not-allowed opacity-60 text-muted-foreground hover:bg-muted/10"
           >
             <Layers className="h-3.5 w-3.5" />
-            System Design
+            <span>System Design</span>
+            <Lock className="h-3 w-3 shrink-0" />
+            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary uppercase tracking-wider scale-95 ml-1 shrink-0">Soon</span>
           </button>
         </div>
       </motion.div>

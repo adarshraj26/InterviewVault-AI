@@ -1,10 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { GlobalSearchModal } from "@/components/shared";
 import { cn } from "@/lib/utils";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 6 },
+  enter:   { opacity: 1, y: 0 },
+  exit:    { opacity: 0 },
+};
+
+const pageTransition = {
+  duration: 0.18,
+  ease: "easeOut" as const,
+};
 
 export default function DashboardLayout({
   children,
@@ -14,6 +28,7 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const pathname = usePathname();
 
   // Listen for Cmd+K / Ctrl+K globally
   useEffect(() => {
@@ -48,7 +63,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div
         className={cn(
-          "transition-all duration-300 ease-in-out",
+          "transition-all duration-300 ease-in-out pb-28 lg:pb-0",
           sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[260px]"
         )}
       >
@@ -57,14 +72,30 @@ export default function DashboardLayout({
           sidebarCollapsed={sidebarCollapsed}
           onSearchClick={() => setSearchOpen(true)}
         />
-        <main className="p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-24 min-h-[calc(100vh-1px)]">
-          {children}
-        </main>
+
+        {/* AnimatePresence mode="popLayout" lets the new page mount immediately
+             instead of waiting for the old page's exit — required for server-component
+             pages that go through a Suspense boundary, otherwise the new page is blank. */}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.main
+            key={pathname}
+            variants={pageVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
+            transition={pageTransition}
+            className="p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-24"
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
+
+      {/* Persistent Mobile Bottom Navigation — never unmounts */}
+      <MobileBottomNav />
 
       {/* Command Palette / Search Modal */}
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }
-

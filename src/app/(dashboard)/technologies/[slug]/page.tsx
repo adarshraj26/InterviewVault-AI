@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent, ConfirmDeleteButton } from "@/components/shared";
+import { GlassCard, RichTextEditor, MarkdownRenderer, QuestionDetailView, isMarkdownContent, ConfirmDeleteButton, CustomSelect } from "@/components/shared";
 import { cn, stripMarkdown } from "@/lib/utils";
 import { getTechnologyBySlug, updateTechnology } from "@/actions/technologies";
 import { createQuestion, generateAIQuestions, deleteQuestion, deleteMultipleQuestions, updateQuestion, toggleQuestionPublic, formatAnswerAction, recordRevision } from "@/actions/questions";
@@ -166,89 +166,7 @@ function highlightCode(code: string, language: string): string {
   });
 }
 
-// ── Custom Premium Select Component ───────────────────────────
-interface CustomSelectOption<T> {
-  value: T;
-  label: string;
-}
 
-interface CustomSelectProps<T> {
-  value: T;
-  onChange: (value: T) => void;
-  options: CustomSelectOption<T>[];
-  className?: string;
-}
-
-function CustomSelect<T extends string | number>({
-  value,
-  onChange,
-  options,
-  className = "",
-}: CustomSelectProps<T>) {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectedOption = options.find((opt) => opt.value === value);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClose = () => setIsOpen(false);
-    window.addEventListener("click", handleClose);
-    return () => window.removeEventListener("click", handleClose);
-  }, [isOpen]);
-
-  return (
-    <div className={cn("relative inline-block text-left select-none", className)} onClick={(e) => e.stopPropagation()}>
-      <div>
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="flex items-center justify-between w-full gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:border-primary/40 hover:bg-muted/30 focus:outline-none transition-all cursor-pointer text-foreground shadow-sm active:scale-[0.98]"
-        >
-          <span className="truncate">{selectedOption?.label || value}</span>
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 shrink-0", isOpen && "transform rotate-180")}
-          />
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute left-0 z-[150] mt-2 w-full min-w-[140px] origin-top-left rounded-xl border border-border bg-popover/90 dark:bg-card/90 backdrop-blur-xl p-1.5 shadow-xl outline-none"
-          >
-            <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
-              {options.map((opt) => {
-                const isSelected = opt.value === value;
-                return (
-                  <button
-                    key={String(opt.value)}
-                    type="button"
-                    onClick={() => {
-                      onChange(opt.value);
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      "flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all cursor-pointer",
-                      isSelected
-                        ? "bg-primary/10 text-primary border-l-2 border-primary"
-                        : "text-foreground hover:bg-muted/70"
-                    )}
-                  >
-                    <span className="truncate pr-2">{opt.label}</span>
-                    {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 export default function TechnologyWorkspacePage() {
   const { slug } = useParams() as { slug: string };
@@ -1434,10 +1352,10 @@ export default function TechnologyWorkspacePage() {
                           <button
                             onClick={() => handleTogglePublic(q)}
                             className={cn(
-                              "p-1 rounded bg-black/30 border transition-colors cursor-pointer",
+                              "p-1 rounded transition-colors cursor-pointer border",
                               q.isPublic
                                 ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
-                                : "border-border text-muted-foreground hover:text-emerald-500 hover:border-emerald-500/40"
+                                : "bg-indigo-500/[0.06] dark:bg-indigo-500/10 border-indigo-500/20 dark:border-indigo-500/30 text-indigo-600/80 dark:text-indigo-400/80 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-500"
                             )}
                             title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
                           >
@@ -1446,14 +1364,14 @@ export default function TechnologyWorkspacePage() {
 
                           <button
                             onClick={() => handleStartEditQuestion(q)}
-                            className="p-1 rounded bg-black/30 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                            className="p-1 rounded bg-amber-500/[0.06] dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/30 text-amber-600/80 dark:text-amber-400/80 hover:bg-amber-500/15 hover:border-amber-500/40 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
                             title="Edit"
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
                           <ConfirmDeleteButton
                             onDelete={() => handleDeleteQuestion(q.id, q.title)}
-                            className="w-6 h-6 bg-black/30 border border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 transition-colors"
+                            className="w-6 h-6 rounded-full bg-rose-500/[0.06] dark:bg-rose-500/10 border border-rose-500/20 dark:border-rose-500/30 text-rose-600/80 dark:text-rose-400/80 hover:bg-rose-500/15 hover:border-rose-500/40 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
                             tooltip="Delete"
                             icon={<Trash className="h-3 w-3" />}
                             confirmIcon={<AlertCircle className="h-3 w-3 animate-pulse" />}
@@ -1553,7 +1471,7 @@ export default function TechnologyWorkspacePage() {
                           "p-1.5 rounded-lg border transition-all cursor-pointer z-10",
                           q.isPublic
                             ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
-                            : "border-border bg-black/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
+                            : "border-indigo-500/20 dark:border-indigo-500/30 bg-indigo-500/[0.06] dark:bg-indigo-500/10 text-indigo-600/80 dark:text-indigo-400/80 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-500"
                         )}
                         title={q.isPublic ? "Remove from Community Library" : "Share to Community Library"}
                       >
@@ -1566,7 +1484,7 @@ export default function TechnologyWorkspacePage() {
                           e.stopPropagation();
                           handleStartEditQuestion(q);
                         }}
-                        className="p-1.5 rounded-lg border border-border bg-black/10 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all cursor-pointer z-10"
+                        className="p-1.5 rounded-lg border border-amber-500/20 dark:border-amber-500/30 bg-amber-500/[0.06] dark:bg-amber-500/10 hover:bg-amber-500/15 hover:border-amber-500/40 text-amber-600/80 dark:text-amber-400/80 hover:text-amber-500 dark:hover:text-amber-400 transition-all cursor-pointer z-10"
                         title="Edit Question"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -1575,7 +1493,7 @@ export default function TechnologyWorkspacePage() {
                     {!isReadOnly && (
                       <ConfirmDeleteButton
                         onDelete={() => handleDeleteQuestion(q.id, q.title)}
-                        className="w-7 h-7 border border-border bg-black/10 hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all cursor-pointer z-10"
+                        className="w-7 h-7 border border-rose-500/20 dark:border-rose-500/30 bg-rose-500/[0.06] dark:bg-rose-500/10 hover:bg-rose-500/15 hover:border-rose-500/40 text-rose-600/80 dark:text-rose-400/80 hover:text-rose-500 dark:hover:text-rose-400 transition-all cursor-pointer z-10"
                         tooltip="Delete Question"
                       />
                     )}
@@ -1785,46 +1703,49 @@ export default function TechnologyWorkspacePage() {
                 {editorMode !== "markdown" && codeExample.trim() && (
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Code Language</label>
-                    <select
+                    <CustomSelect
                       value={codeLanguage}
-                      onChange={(e) => setCodeLanguage(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
-                    >
-                      <option value="javascript" className="bg-card text-foreground">JavaScript</option>
-                      <option value="typescript" className="bg-card text-foreground">TypeScript</option>
-                      <option value="python" className="bg-card text-foreground">Python</option>
-                      <option value="sql" className="bg-card text-foreground">SQL</option>
-                      <option value="html" className="bg-card text-foreground">HTML</option>
-                      <option value="css" className="bg-card text-foreground">CSS</option>
-                      <option value="java" className="bg-card text-foreground">Java</option>
-                      <option value="cpp" className="bg-card text-foreground">C++</option>
-                    </select>
+                      onChange={(val) => setCodeLanguage(val)}
+                      options={[
+                        { value: "javascript", label: "JavaScript" },
+                        { value: "typescript", label: "TypeScript" },
+                        { value: "python",     label: "Python" },
+                        { value: "sql",        label: "SQL" },
+                        { value: "html",       label: "HTML" },
+                        { value: "css",        label: "CSS" },
+                        { value: "java",       label: "Java" },
+                        { value: "cpp",        label: "C++" },
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Difficulty</label>
-                    <select
+                    <CustomSelect
                       value={difficulty}
-                      onChange={(e) => setDifficulty(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
-                    >
-                      <option value="EASY" className="bg-card text-foreground">Easy</option>
-                      <option value="MEDIUM" className="bg-card text-foreground">Medium</option>
-                      <option value="HARD" className="bg-card text-foreground">Hard</option>
-                    </select>
+                      onChange={(val) => setDifficulty(val as any)}
+                      options={[
+                        { value: "EASY",   label: "Easy",   color: "text-green-400" },
+                        { value: "MEDIUM", label: "Medium", color: "text-yellow-400" },
+                        { value: "HARD",   label: "Hard",   color: "text-red-400" },
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Frequency</label>
-                    <select
+                    <CustomSelect
                       value={frequency}
-                      onChange={(e) => setFrequency(e.target.value as any)}
-                      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition-all cursor-pointer text-foreground"
-                    >
-                      <option value="RARE" className="bg-card text-foreground">Rare</option>
-                      <option value="COMMON" className="bg-card text-foreground">Common</option>
-                      <option value="VERY_COMMON" className="bg-card text-foreground">Very Common</option>
-                    </select>
+                      onChange={(val) => setFrequency(val as any)}
+                      options={[
+                        { value: "RARE",        label: "Rare" },
+                        { value: "COMMON",      label: "Common" },
+                        { value: "VERY_COMMON", label: "Very Common" },
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">

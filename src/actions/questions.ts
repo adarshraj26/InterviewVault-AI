@@ -1121,10 +1121,23 @@ export async function globalSearchAction(query: string) {
       }),
       db.question.findMany({
         where: {
-          userId,
           OR: [
-            { title: { contains: cleanQuery, mode: "insensitive" } },
-            { answer: { contains: cleanQuery, mode: "insensitive" } },
+            // Questions the user personally created
+            {
+              userId,
+              OR: [
+                { title: { contains: cleanQuery, mode: "insensitive" } },
+                { answer: { contains: cleanQuery, mode: "insensitive" } },
+              ],
+            },
+            // Questions on global template technologies (admin-owned but visible to all)
+            {
+              technology: { isGlobalTemplate: true },
+              OR: [
+                { title: { contains: cleanQuery, mode: "insensitive" } },
+                { answer: { contains: cleanQuery, mode: "insensitive" } },
+              ],
+            },
           ],
         },
         include: {
@@ -1136,6 +1149,11 @@ export async function globalSearchAction(query: string) {
           },
         },
         take: 10,
+        orderBy: [
+          // Prefer user's own questions first
+          { userId: "desc" },
+          { createdAt: "desc" },
+        ],
       }),
       db.note.findMany({
         where: {

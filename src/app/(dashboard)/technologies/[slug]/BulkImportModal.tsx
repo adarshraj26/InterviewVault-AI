@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { RichTextEditor, MarkdownRenderer } from "@/components/shared";
+import { RichTextEditor, MarkdownRenderer, CustomSelect } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { getTechnologies } from "@/actions/technologies";
 import {
@@ -894,49 +894,42 @@ export function BulkImportModal({
                       <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Bulk Edit:</span>
 
                       {/* Bulk Workspace select */}
-                      <select
-                        onChange={(e) => {
-                          handleBulkChangeWorkspace(e.target.value);
-                          e.target.value = "";
-                        }}
-                        defaultValue=""
-                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px]"
-                      >
-                        <option value="" disabled>Set Workspace</option>
-                        {existingTechs.map(t => (
-                          <option key={t.id} value={t.name}>{t.name}</option>
-                        ))}
-                      </select>
+                      <CustomSelect
+                        value=""
+                        onChange={(val) => { if (val) handleBulkChangeWorkspace(val as string); }}
+                        placeholder="Set Workspace"
+                        options={existingTechs.map(t => ({ value: t.name, label: t.name }))}
+                        size="sm"
+                        className="w-36"
+                      />
 
                       {/* Bulk Difficulty select */}
-                      <select
-                        onChange={(e) => {
-                          handleBulkChangeDifficulty(e.target.value as any);
-                          e.target.value = "";
-                        }}
-                        defaultValue=""
-                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                      >
-                        <option value="" disabled>Set Difficulty</option>
-                        <option value="EASY">Easy</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="HARD">Hard</option>
-                      </select>
+                      <CustomSelect
+                        value=""
+                        onChange={(val) => { if (val) handleBulkChangeDifficulty(val as any); }}
+                        placeholder="Set Difficulty"
+                        options={[
+                          { value: "EASY",   label: "Easy",   color: "text-green-400" },
+                          { value: "MEDIUM", label: "Medium", color: "text-yellow-400" },
+                          { value: "HARD",   label: "Hard",   color: "text-red-400" },
+                        ]}
+                        size="sm"
+                        className="w-32"
+                      />
 
                       {/* Bulk Frequency select */}
-                      <select
-                        onChange={(e) => {
-                          handleBulkChangeFrequency(e.target.value as any);
-                          e.target.value = "";
-                        }}
-                        defaultValue=""
-                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                      >
-                        <option value="" disabled>Set Frequency</option>
-                        <option value="RARE">Rare</option>
-                        <option value="COMMON">Common</option>
-                        <option value="VERY_COMMON">Very Common</option>
-                      </select>
+                      <CustomSelect
+                        value=""
+                        onChange={(val) => { if (val) handleBulkChangeFrequency(val as any); }}
+                        placeholder="Set Frequency"
+                        options={[
+                          { value: "RARE",        label: "Rare",        color: "text-blue-400" },
+                          { value: "COMMON",      label: "Common",      color: "text-purple-400" },
+                          { value: "VERY_COMMON", label: "Very Common", color: "text-pink-400" },
+                        ]}
+                        size="sm"
+                        className="w-32"
+                      />
 
                       {/* Bulk Tags button */}
                       <button
@@ -954,19 +947,18 @@ export function BulkImportModal({
                       </button>
 
                       {/* Bulk Duplicate Strategy */}
-                      <select
-                        onChange={(e) => {
-                          handleBulkChangeStrategy(e.target.value as any);
-                          e.target.value = "";
-                        }}
-                        defaultValue=""
-                        className="rounded-lg border border-border bg-black/20 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer text-amber-500 font-semibold"
-                      >
-                        <option value="" disabled>Duplicate Strategy</option>
-                        <option value="skip">Skip All Duplicates</option>
-                        <option value="replace">Replace All Duplicates</option>
-                        <option value="keep">Keep Both (Import All)</option>
-                      </select>
+                      <CustomSelect
+                        value=""
+                        onChange={(val) => { if (val) handleBulkChangeStrategy(val as any); }}
+                        placeholder="Duplicate Strategy"
+                        options={[
+                          { value: "skip",    label: "Skip All Duplicates",    color: "text-amber-400" },
+                          { value: "replace", label: "Replace All Duplicates", color: "text-amber-400" },
+                          { value: "keep",    label: "Keep Both (Import All)", color: "text-amber-400" },
+                        ]}
+                        size="sm"
+                        className="w-44"
+                      />
                     </div>
 
                     {/* Search filter */}

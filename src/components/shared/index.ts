@@ -13,3 +13,6 @@ export * from "./footer";
 export { GlobalSearchModal } from "./global-search";
 export { UserAvatar } from "./UserAvatar";
 export type { UserAvatarUser } from "./UserAvatar";
+export { CustomSelect } from "./custom-select";
+export type { SelectOption, CustomSelectProps } from "./custom-select";
+

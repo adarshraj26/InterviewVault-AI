@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 
+import { Logo } from "@/components/shared";
+
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -111,12 +113,9 @@ export function Navbar({ onMenuClick, sidebarCollapsed, onSearchClick }: NavbarP
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
         {/* Left: Menu + Search */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          <div className="lg:hidden pr-1.5">
+            <Logo showText={false} size="sm" />
+          </div>
 
           {/* Search Bar */}
           <div className="hidden sm:flex items-center">

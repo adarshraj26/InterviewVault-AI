@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Plus, Search, StickyNote, BookOpen, Zap, Trash, Edit, X, Save, Loader2 } from "lucide-react";
-import { GlassCard } from "@/components/shared";
+import { GlassCard, CustomSelect, ConfirmDeleteButton } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { createNote, updateNote, deleteNote } from "@/actions/notes";
 import { toast } from "sonner";
@@ -75,9 +75,7 @@ export default function NotesClient({
     setEditorNote(note);
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this note?")) return;
+  const handleDelete = async (id: string) => {
     try {
       const res = await deleteNote(id);
       if (res.error) {
@@ -240,12 +238,10 @@ export default function NotesClient({
                   </div>
                   
                   <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
-                    <button 
-                      onClick={(e) => handleDelete(note.id, e)}
-                      className="p-1.5 rounded-lg border border-border glass hover:bg-red-500/10 hover:border-red-500/30 text-muted-foreground hover:text-red-500 transition-all"
-                    >
-                      <Trash className="h-3.5 w-3.5" />
-                    </button>
+                    <ConfirmDeleteButton 
+                      onDelete={() => handleDelete(note.id)}
+                      className="p-1.5 h-8 w-8"
+                    />
                   </div>
                 </GlassCard>
               </motion.div>
@@ -288,29 +284,30 @@ export default function NotesClient({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Note Type</label>
-                    <select
+                    <CustomSelect
                       value={editorNote.type || "INTERVIEW_NOTES"}
-                      onChange={(e) => setEditorNote(prev => ({ ...prev, type: e.target.value as any }))}
-                      className="w-full bg-black/20 p-3 rounded-xl border border-border focus:outline-none text-sm"
-                    >
-                      <option value="INTERVIEW_NOTES">Interview Notes</option>
-                      <option value="CHEAT_SHEET">Cheat Sheet</option>
-                      <option value="QUICK_REVISION">Quick Revision</option>
-                    </select>
+                      onChange={(val) => setEditorNote(prev => ({ ...prev, type: val as any }))}
+                      options={[
+                        { value: "INTERVIEW_NOTES", label: "Interview Notes", icon: FileText, color: "text-blue-400" },
+                        { value: "CHEAT_SHEET",     label: "Cheat Sheet",     icon: Zap,      color: "text-amber-400" },
+                        { value: "QUICK_REVISION",  label: "Quick Revision",  icon: BookOpen,  color: "text-green-400" },
+                      ]}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Technology (Optional)</label>
-                    <select
+                    <CustomSelect
                       value={editorNote.technologyId || ""}
-                      onChange={(e) => setEditorNote(prev => ({ ...prev, technologyId: e.target.value }))}
-                      className="w-full bg-black/20 p-3 rounded-xl border border-border focus:outline-none text-sm"
-                    >
-                      <option value="">None</option>
-                      {technologies.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setEditorNote(prev => ({ ...prev, technologyId: val }))}
+                      placeholder="None"
+                      options={[
+                        { value: "", label: "None" },
+                        ...technologies.map((t) => ({ value: t.id, label: t.name })),
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                 </div>
 
