@@ -10,7 +10,6 @@ import {
   Code2,
   Mic,
   StickyNote,
-  Menu,
   FileSearch,
   Users,
   Bookmark,
@@ -20,205 +19,222 @@ import {
   LogOut,
   X,
   Shield,
+  ChevronUp,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Static data (outside component to avoid re-creation) ──────────────────
-const PRIMARY_ITEMS = [
-  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Resume", href: "/resume-analyzer", icon: FileSearch },
-] as const;
-
-const SECONDARY_ITEMS = [
-  { label: "Notes", href: "/notes", icon: StickyNote },
+// ── Static data ────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { label: "Home",       href: "/dashboard",       icon: LayoutDashboard },
+  { label: "Resume",     href: "/resume-analyzer",  icon: FileSearch      },
+  { label: "Topics",     href: "/technologies",     icon: Code2,  isFab: true },
+  { label: "Notes",      href: "/notes",            icon: StickyNote      },
+  { label: "More",       href: "#more",             icon: ChevronUp, isMore: true },
 ] as const;
 
 const DRAWER_ITEMS = [
-  { label: "Mock Interview", href: "/mock-interview", icon: Mic },
-  { label: "Community", href: "/community", icon: Users },
-  { label: "Saved Questions", href: "/saved", icon: Bookmark },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "About", href: "/about", icon: Info },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Mock Interview",  href: "/mock-interview", icon: Mic      },
+  { label: "Community",       href: "/community",      icon: Users    },
+  { label: "Saved",           href: "/saved",          icon: Bookmark },
+  { label: "Analytics",       href: "/analytics",      icon: BarChart3},
+  { label: "About",           href: "/about",          icon: Info     },
+  { label: "Settings",        href: "/settings",       icon: Settings },
 ] as const;
 
-// ── Helper: determine whether a given href matches current path ───────────
 function getIsActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "#more") return false;
   return pathname.startsWith(href);
 }
 
-// ── Individual nav tab ────────────────────────────────────────────────────
-interface NavTabProps {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  active: boolean;
+// ── Single nav pill button ─────────────────────────────────────────────────
+interface NavPillProps {
+  href:    string;
+  label:   string;
+  icon:    React.ElementType;
+  active:  boolean;
+  isFab?:  boolean;
+  isMore?: boolean;
+  onClick?: () => void;
+  drawerOpen?: boolean;
 }
 
-const NavTab = memo(function NavTab({ href, label, icon: Icon, active }: NavTabProps) {
-  const prefersReducedMotion = useReducedMotion();
+const NavPill = memo(function NavPill({
+  href, label, icon: Icon, active, isFab, isMore, onClick, drawerOpen,
+}: NavPillProps) {
+  const rm = useReducedMotion();
 
+  /* ---------- FAB (center elevated button) ---------- */
+  if (isFab) {
+    return (
+      <div className="relative flex flex-col items-center" style={{ width: 64 }}>
+        {/* Breathing aura */}
+        {!rm && (
+          <motion.div
+            animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0.1, 0.5] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-5 w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 blur-xl pointer-events-none"
+          />
+        )}
+        <Link
+          href={href}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className="relative z-10 -mt-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+        >
+          <motion.div
+            whileTap={rm ? {} : { scale: 0.88 }}
+            animate={rm ? {} : { rotate: active ? 180 : 0, scale: active ? 1.08 : 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+            className={cn(
+              "w-14 h-14 rounded-full flex items-center justify-center",
+              "shadow-[0_8px_30px_rgba(99,102,241,0.5)]",
+              "bg-gradient-to-br from-violet-600 via-primary to-indigo-500",
+              "border-[3px]",
+              active ? "border-white/40" : "border-white/20"
+            )}
+          >
+            <Icon className="h-6 w-6 text-white" strokeWidth={2} />
+          </motion.div>
+        </Link>
+        <motion.span
+          animate={rm ? {} : { opacity: active ? 1 : 0.5 }}
+          className="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70 pointer-events-none"
+        >
+          {label}
+        </motion.span>
+      </div>
+    );
+  }
+
+  /* ---------- "More" toggle button ---------- */
+  if (isMore) {
+    return (
+      <button
+        onClick={onClick}
+        aria-label="More navigation options"
+        aria-expanded={drawerOpen}
+        className="relative flex flex-col items-center gap-1 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl select-none cursor-pointer"
+      >
+        {/* Active pill highlight */}
+        <AnimatePresence>
+          {drawerOpen && (
+            <motion.div
+              key="more-bg"
+              layoutId="nav-active-pill"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/15 to-indigo-500/15 border border-primary/20"
+            />
+          )}
+        </AnimatePresence>
+        <motion.div
+          whileTap={rm ? {} : { scale: 0.85 }}
+          animate={rm ? {} : { rotate: drawerOpen ? 180 : 0 }}
+          transition={{ type: "spring", stiffness: 420, damping: 24 }}
+          className={cn(
+            "relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+            drawerOpen
+              ? "bg-primary/20 text-primary"
+              : "bg-muted/30 text-muted-foreground/70"
+          )}
+        >
+          <Icon className="h-5 w-5" strokeWidth={drawerOpen ? 2.5 : 1.8} />
+        </motion.div>
+        <motion.span
+          animate={rm ? {} : { opacity: drawerOpen ? 1 : 0.5 }}
+          className={cn(
+            "relative z-10 text-[9px] font-bold uppercase tracking-widest transition-colors",
+            drawerOpen ? "text-primary" : "text-muted-foreground/60"
+          )}
+        >
+          More
+        </motion.span>
+      </button>
+    );
+  }
+
+  /* ---------- Normal nav button ---------- */
   return (
     <Link
       href={href}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className="relative flex flex-col items-center justify-center w-14 h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none"
+      className="relative flex flex-col items-center gap-1 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl select-none"
     >
-      {/* Sliding active background pill */}
+      {/* Shared sliding pill highlight */}
       {active && (
         <motion.div
-          layoutId="mobile-nav-active-bg"
-          className="absolute inset-0 rounded-xl bg-primary/10"
-          transition={
-            prefersReducedMotion
-              ? { duration: 0 }
-              : { type: "spring", stiffness: 400, damping: 32 }
-          }
+          layoutId="nav-active-pill"
+          className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/15 to-indigo-500/15 border border-primary/20"
+          transition={rm ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
 
-      {/* Icon + optional glow */}
+      {/* Circle icon container */}
       <motion.div
+        whileTap={rm ? {} : { scale: 0.82 }}
         animate={
-          prefersReducedMotion
-            ? {}
-            : {
-                scale: active ? 1.12 : 1,
-                filter: active
-                  ? "drop-shadow(0 0 6px hsl(var(--primary) / 0.5))"
-                  : "drop-shadow(0 0 0px transparent)",
-              }
+          rm ? {} : {
+            y: active ? -3 : 0,
+            scale: active ? 1.1 : 1,
+            filter: active
+              ? "drop-shadow(0 4px 12px hsl(var(--primary) / 0.55))"
+              : "drop-shadow(0 0 0px transparent)",
+          }
         }
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className="relative z-10"
+        transition={{ type: "spring", stiffness: 460, damping: 26 }}
+        className={cn(
+          "relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-200",
+          active
+            ? "bg-gradient-to-br from-primary/25 to-indigo-500/25 text-primary"
+            : "bg-muted/20 text-muted-foreground/70"
+        )}
       >
-        <Icon
-          className={cn(
-            "h-5 w-5 transition-colors duration-200",
-            active ? "text-primary" : "text-muted-foreground/70"
-          )}
-          strokeWidth={active ? 2.5 : 1.8}
-        />
+        <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 1.8} />
+
+        {/* Active glow ring around icon circle */}
+        {active && !rm && (
+          <motion.div
+            layoutId="nav-icon-ring"
+            className="absolute inset-0 rounded-full border-2 border-primary/40"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
       </motion.div>
 
-      {/* Label */}
+      {/* Label fades + lifts in when active */}
       <motion.span
-        animate={prefersReducedMotion ? {} : { opacity: active ? 1 : 0.6 }}
-        transition={{ duration: 0.2 }}
+        animate={rm ? {} : { opacity: active ? 1 : 0.45, y: active ? 0 : 2 }}
+        transition={{ duration: 0.18 }}
         className={cn(
-          "relative z-10 text-[10px] mt-0.5 font-bold transition-colors duration-200",
-          active ? "text-primary" : "text-muted-foreground/60"
+          "relative z-10 text-[9px] font-bold uppercase tracking-widest",
+          active ? "text-primary" : "text-muted-foreground/55"
         )}
       >
         {label}
       </motion.span>
+
+      {/* Tiny glowing dot below label for active state */}
+      {active && (
+        <motion.div
+          layoutId="nav-active-dot"
+          className="absolute -bottom-1 w-1 h-1 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]"
+          transition={rm ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
+        />
+      )}
     </Link>
   );
 });
 
-// ── More button ───────────────────────────────────────────────────────────
-const MoreButton = memo(function MoreButton({
-  active,
-  onClick,
-}: {
-  active: boolean;
-  onClick: () => void;
-}) {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <button
-      onClick={onClick}
-      aria-label="More navigation options"
-      aria-expanded={active}
-      className="relative flex flex-col items-center justify-center w-14 h-full rounded-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none"
-    >
-      {active && (
-        <motion.div
-          layoutId="mobile-nav-active-bg"
-          className="absolute inset-0 rounded-xl bg-primary/10"
-          transition={
-            prefersReducedMotion
-              ? { duration: 0 }
-              : { type: "spring", stiffness: 400, damping: 32 }
-          }
-        />
-      )}
-      <motion.div
-        animate={prefersReducedMotion ? {} : { scale: active ? 1.12 : 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className="relative z-10"
-      >
-        <Menu
-          className={cn(
-            "h-5 w-5 transition-colors duration-200",
-            active ? "text-primary" : "text-muted-foreground/70"
-          )}
-          strokeWidth={active ? 2.5 : 1.8}
-        />
-      </motion.div>
-      <span
-        className={cn(
-          "relative z-10 text-[10px] mt-0.5 font-bold transition-colors duration-200",
-          active ? "text-primary" : "text-muted-foreground/60"
-        )}
-      >
-        More
-      </span>
-    </button>
-  );
-});
-
-// ── Center FAB (Technologies) ─────────────────────────────────────────────
-const CenterFab = memo(function CenterFab({ active }: { active: boolean }) {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <div className="relative flex flex-col items-center justify-center w-16">
-      <motion.div
-        whileTap={prefersReducedMotion ? {} : { scale: 0.88 }}
-        transition={{ type: "spring", stiffness: 500, damping: 28 }}
-        className="absolute -top-7"
-      >
-        <Link
-          href="/technologies"
-          aria-label="Technologies"
-          aria-current={active ? "page" : undefined}
-          className={cn(
-            "w-14 h-14 rounded-full flex items-center justify-center border-4 border-background z-10 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-md",
-            active
-              ? "bg-primary text-primary-foreground"
-              : "bg-primary/90 text-primary-foreground hover:bg-primary"
-          )}
-        >
-          <motion.div
-            animate={
-              prefersReducedMotion
-                ? {}
-                : {
-                    scale: active ? 1.1 : 1,
-                    rotate: active ? 8 : 0,
-                  }
-            }
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          >
-            <Code2 className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-          </motion.div>
-        </Link>
-      </motion.div>
-      <span className="text-[10px] font-bold text-muted-foreground/60 absolute top-8 pointer-events-none">
-        Topics
-      </span>
-    </div>
-  );
-});
-
-// ── Main component ────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────
 export const MobileBottomNav = memo(function MobileBottomNav() {
-  const pathname = usePathname();
+  const pathname   = usePathname();
   const { data: session } = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const role = (session?.user as { role?: string })?.role;
+  const role    = (session?.user as { role?: string })?.role;
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
 
   const isActive = useCallback(
@@ -226,12 +242,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
     [pathname]
   );
 
-  const drawerActive = drawerOpen;
-
-  // Close drawer on route change
-  useEffect(() => {
-    setDrawerOpen(false);
-  }, [pathname]);
+  useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   const handleSignOut = useCallback(async () => {
     await signOut({ redirect: false });
@@ -244,43 +255,35 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
 
   return (
     <>
-      {/* ── Floating Bottom Nav Bar ── */}
+      {/* ── Floating Bottom Nav ── */}
       <nav
         aria-label="Mobile navigation"
-        className="fixed bottom-5 left-4 right-4 h-16 z-[199] rounded-2xl border border-border/60 bg-card/85 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.14)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.45)] flex items-center justify-between px-2 lg:hidden"
+        className={cn(
+          "fixed bottom-5 left-5 right-5 z-[199] lg:hidden",
+          "h-[68px] rounded-[28px]",
+          "bg-background/70 dark:bg-[#0C0C10]/70 backdrop-blur-2xl",
+          "border border-white/10 dark:border-white/[0.06]",
+          "shadow-[0_20px_60px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)_inset]",
+          "flex items-center justify-around px-2"
+        )}
       >
-        {/* Left tabs */}
-        <div className="flex items-center justify-around flex-1">
-          {PRIMARY_ITEMS.map((item) => (
-            <NavTab
+        {NAV_ITEMS.map((item) => {
+          const isMore = "isMore" in item && item.isMore === true;
+          const isFab  = "isFab"  in item && item.isFab  === true;
+          return (
+            <NavPill
               key={item.href}
               href={item.href}
               label={item.label}
               icon={item.icon}
               active={isActive(item.href)}
+              isFab={isFab}
+              isMore={isMore}
+              drawerOpen={isMore ? drawerOpen : undefined}
+              onClick={isMore ? () => setDrawerOpen((p) => !p) : undefined}
             />
-          ))}
-        </div>
-
-        {/* Center elevated FAB */}
-        <CenterFab active={isActive("/technologies")} />
-
-        {/* Right tabs */}
-        <div className="flex items-center justify-around flex-1">
-          {SECONDARY_ITEMS.map((item) => (
-            <NavTab
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              active={isActive(item.href)}
-            />
-          ))}
-          <MoreButton
-            active={drawerActive}
-            onClick={() => setDrawerOpen((prev) => !prev)}
-          />
-        </div>
+          );
+        })}
       </nav>
 
       {/* ── More Drawer ── */}
@@ -291,69 +294,99 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
             <motion.div
               key="mobile-nav-backdrop"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.45 }}
+              animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.22 }}
               onClick={() => setDrawerOpen(false)}
-              className="fixed inset-0 bg-black z-[299] lg:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[299] lg:hidden"
               aria-hidden="true"
             />
 
-            {/* Drawer sheet */}
+            {/* Drawer */}
             <motion.div
               key="mobile-nav-drawer"
               role="dialog"
               aria-modal="true"
               aria-label="More navigation options"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 240 }}
-              className="fixed bottom-0 left-0 right-0 z-[300] bg-card rounded-t-3xl border-t border-border/80 p-6 shadow-2xl flex flex-col max-h-[80vh] lg:hidden pb-10"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 32, stiffness: 240 }}
+              className={cn(
+                "fixed bottom-0 left-0 right-0 z-[300] lg:hidden",
+                "bg-background/90 dark:bg-[#0D0D12]/90 backdrop-blur-3xl",
+                "rounded-t-[36px] border-t border-white/8 dark:border-white/[0.05]",
+                "shadow-[0_-20px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)_inset]",
+                "p-6 pb-10 flex flex-col max-h-[88vh]"
+              )}
             >
-              {/* Drag handle */}
-              <div
-                className="w-12 h-1.5 rounded-full bg-muted-foreground/20 mx-auto mb-5 shrink-0"
-                aria-hidden="true"
-              />
-
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-base font-bold text-foreground">More</h3>
-                <button
-                  onClick={() => setDrawerOpen(false)}
-                  aria-label="Close menu"
-                  className="p-1.5 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+              {/* Drag Handle */}
+              <div className="flex justify-center mb-5">
+                <div className="w-10 h-1 rounded-full bg-white/15" aria-hidden="true" />
               </div>
 
-              {/* Grid of drawer nav items */}
-              <div className="grid grid-cols-3 gap-3 overflow-y-auto pr-1 py-1 max-h-[50vh] custom-scrollbar mb-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
+                    All Pages
+                  </span>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setDrawerOpen(false)}
+                  aria-label="Close menu"
+                  className="w-8 h-8 rounded-full bg-white/8 hover:bg-white/15 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </motion.button>
+              </div>
+
+              {/* Grid */}
+              <div className="grid grid-cols-3 gap-3 overflow-y-auto mb-5">
                 {adminDrawerItems.map((item, i) => {
                   const active = isActive(item.href);
-                  const Icon = item.icon;
+                  const Icon   = item.icon;
                   return (
                     <motion.div
                       key={item.href}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04, type: "spring", stiffness: 400, damping: 28 }}
+                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                      animate={{ opacity: 1, scale: 1,   y: 0  }}
+                      transition={{
+                        delay: i * 0.04,
+                        type: "spring",
+                        stiffness: 360,
+                        damping: 22,
+                      }}
                     >
                       <Link
                         href={item.href}
                         aria-label={item.label}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          "group flex flex-col items-center justify-center gap-2.5 p-4 rounded-3xl",
+                          "border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                           active
-                            ? "bg-primary/10 border-primary/30 text-primary"
-                            : "bg-muted/30 border-border hover:bg-muted/60"
+                            ? "bg-gradient-to-br from-primary/15 to-indigo-500/15 border-primary/25 shadow-[0_0_20px_rgba(99,102,241,0.12)]"
+                            : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-white/10"
                         )}
                       >
-                        <Icon className="h-5 w-5 mb-1.5" />
-                        <span className="text-[11px] font-semibold leading-tight line-clamp-1">
+                        <motion.div
+                          whileTap={{ scale: 0.85 }}
+                          className={cn(
+                            "w-11 h-11 rounded-2xl flex items-center justify-center transition-colors",
+                            active
+                              ? "bg-gradient-to-br from-primary/30 to-indigo-500/30 text-primary shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
+                              : "bg-white/[0.06] text-muted-foreground group-hover:text-foreground"
+                          )}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={active ? 2.3 : 1.8} />
+                        </motion.div>
+                        <span className={cn(
+                          "text-[11px] font-bold leading-tight text-center line-clamp-1",
+                          active ? "text-primary" : "text-muted-foreground"
+                        )}>
                           {item.label}
                         </span>
                       </Link>
@@ -362,15 +395,22 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                 })}
               </div>
 
-              {/* Sign out */}
-              <button
+              {/* Sign Out */}
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 onClick={handleSignOut}
                 aria-label="Sign out"
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs font-semibold transition-all active:scale-[0.98] cursor-pointer mt-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                className={cn(
+                  "w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl",
+                  "border border-destructive/15 bg-destructive/5 text-destructive",
+                  "hover:bg-destructive hover:text-white",
+                  "text-sm font-semibold transition-all cursor-pointer mt-auto",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                )}
               >
                 <LogOut className="h-4 w-4" />
                 Sign Out
-              </button>
+              </motion.button>
             </motion.div>
           </>
         )}

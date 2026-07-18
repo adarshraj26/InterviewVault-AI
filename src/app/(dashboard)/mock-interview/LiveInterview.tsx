@@ -7,6 +7,7 @@ import { Mic, MicOff, AlertTriangle, ArrowRight, Loader2, X } from "lucide-react
 import { GlassCard } from "@/components/shared";
 import { submitAnswer, finishMockInterview } from "@/actions/mockInterviews";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Question {
   id: string;
@@ -196,37 +197,84 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
         <div className="absolute top-0 right-0 w-48 h-48 gradient-bg opacity-5 rounded-full blur-3xl" />
 
         <div>
-          <h2 className="text-xl font-semibold leading-relaxed mb-6">
-            {currentQuestion.question}
-          </h2>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentQuestion.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3 }}
+            >
+              <h2 className="text-xl font-semibold leading-relaxed mb-6">
+                {currentQuestion.question}
+              </h2>
+            </motion.div>
+          </AnimatePresence>
 
           <textarea
             value={answers[currentQuestion.id] || ""}
             onChange={(e) => handleTextChange(e.target.value)}
-            placeholder="Type your answer here or use the microphone to dictate..."
+            placeholder="Type your answer here or click Dictate Answer to speak..."
             className="w-full h-48 p-4 rounded-xl border border-border bg-black/20 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none font-medium"
             disabled={submitting || loading}
           />
         </div>
 
+        {/* Live Audio Equalizer Waveform Animation when recording */}
+        <AnimatePresence>
+          {isRecording && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold text-red-400">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                Listening... Speak clearly into your microphone
+              </div>
+              <div className="flex items-center gap-1 h-5">
+                {[0.4, 0.8, 1.2, 0.6, 1.0, 1.4, 0.7, 0.3].map((delay, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1 bg-red-500 rounded-full"
+                    animate={{ height: ["20%", "100%", "30%"] }}
+                    transition={{
+                      duration: 0.6,
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      delay: delay * 0.2,
+                    }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between mt-6">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
             onClick={handleRecordingToggle}
-            className={`w-full sm:w-auto justify-center p-4 rounded-xl border transition-all flex items-center gap-2 font-medium ${
+            className={cn(
+              "w-full sm:w-auto justify-center p-4 rounded-xl border transition-all flex items-center gap-2 font-medium cursor-pointer relative overflow-hidden",
               isRecording
-                ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30"
+                ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
                 : "border-border glass hover:bg-muted text-muted-foreground"
-            }`}
+            )}
             disabled={submitting || loading}
           >
             {isRecording ? <MicOff className="h-5 w-5 animate-pulse" /> : <Mic className="h-5 w-5" />}
             {isRecording ? "Stop Dictation" : "Dictate Answer"}
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={handleNext}
             disabled={submitting || loading}
-            className="w-full sm:w-auto justify-center gradient-bg text-white font-semibold px-6 py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center gap-2"
+            className="w-full sm:w-auto justify-center gradient-bg text-white font-semibold px-6 py-4 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/25 flex items-center gap-2 cursor-pointer"
           >
             {submitting || loading ? (
               <>
@@ -239,7 +287,7 @@ export default function LiveInterview({ interview, initialQuestions }: { intervi
                 <ArrowRight className="h-5 w-5" />
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       </GlassCard>
 

@@ -2,8 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { type ReactNode } from "react";
+import { motion, type HTMLMotionProps } from "framer-motion";
 
-interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GlassCardProps extends Omit<HTMLMotionProps<"div">, "children"> {
   children: ReactNode;
   className?: string;
   variant?: "default" | "strong" | "subtle";
@@ -26,17 +27,19 @@ export function GlassCard({
   };
 
   return (
-    <div
+    <motion.div
+      whileHover={hover ? { y: -5, scale: 1.01, transition: { type: "spring", stiffness: 400, damping: 24 } } : undefined}
+      whileTap={hover ? { scale: 0.98 } : undefined}
       className={cn(
-        "rounded-xl p-6",
+        "rounded-xl p-6 transition-all duration-300",
         variantClasses[variant],
-        hover && "card-hover cursor-pointer",
+        hover && "cursor-pointer hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10",
         glow && "glow",
         className
       )}
       {...props}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

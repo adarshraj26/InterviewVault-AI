@@ -108,33 +108,60 @@ export default function DashboardClient({
 
       {/* ── Stats Grid ───────────────────────────────────── */}
       <motion.div
-        variants={staggerContainer}
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.08 } },
+        }}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         {stats.map((stat) => {
           const IconComponent = labelIcons[stat.label] || HelpCircle;
           return (
-            <motion.div key={stat.label} variants={fadeInUp}>
-              <GlassCard hover className="relative overflow-hidden group">
+            <motion.div
+              key={stat.label}
+              variants={{
+                hidden: { opacity: 0, y: 30, scale: 0.95 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  transition: { type: "spring", stiffness: 300, damping: 20 },
+                },
+              }}
+              whileHover={{ y: -6, scale: 1.02, rotateX: 2, rotateY: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
+              <GlassCard hover className="relative overflow-hidden group border-primary/10 hover:border-primary/30 transition-all duration-300 shadow-md hover:shadow-xl hover:shadow-primary/5">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-                    <p className="text-3xl font-bold mt-2">
+                    <p className="text-3xl font-bold mt-2 tracking-tight">
                       <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-success" />
+                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1 font-medium">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
                       {stat.change}
                     </p>
                   </div>
-                  <div className={cn(
-                    "p-3 rounded-xl bg-gradient-to-br shadow-lg",
-                    stat.color,
-                    "group-hover:scale-110 transition-transform"
-                  )}>
+                  <motion.div
+                    whileHover={{ scale: 1.15, rotate: 8 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 15 }}
+                    className={cn(
+                      "p-3 rounded-xl bg-gradient-to-br shadow-lg",
+                      stat.color
+                    )}
+                  >
                     <IconComponent className="h-5 w-5 text-white" />
-                  </div>
+                  </motion.div>
                 </div>
+                {/* Animated progress accent bar on hover */}
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/60 via-purple-500 to-indigo-500"
+                  initial={{ scaleX: 0 }}
+                  whileHover={{ scaleX: 1 }}
+                  transition={{ duration: 0.3 }}
+                />
                 {/* Subtle gradient overlay */}
                 <div className="absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 opacity-5 rounded-full bg-gradient-to-br from-current" />
               </GlassCard>

@@ -133,6 +133,32 @@ model VerificationToken {
   @@id([identifier, token])
 }
 
+// ── Email OTP Verification ─────────────────────────────────
+model EmailOtp {
+  id        String   @id @default(cuid())
+  email     String
+  code      String   // 6-digit OTP
+  name      String   // Stored for account creation after verification
+  password  String   // Hashed password stored temporarily
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ── Password Reset OTP ─────────────────────────────────────
+model PasswordResetOtp {
+  id        String   @id @default(cuid())
+  email     String
+  code      String   // 6-digit OTP
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
 // ── Resume & Skills ────────────────────────────────────────
 
 model Resume {

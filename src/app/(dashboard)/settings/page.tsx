@@ -24,6 +24,7 @@ export default async function SettingsPage() {
       googleImageUrl:   true,
       selectedAvatarId: true,
       avatarType:       true,
+      hashedPassword:   true,
     },
   });
 
@@ -37,6 +38,7 @@ export default async function SettingsPage() {
         user={{
           ...dbUser,
           avatarType: dbUser.avatarType as string | null,
+          hasPassword: dbUser.hashedPassword !== null,
         }}
       />
     </div>

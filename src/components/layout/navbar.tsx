@@ -118,47 +118,55 @@ export function Navbar({ onMenuClick, sidebarCollapsed, onSearchClick }: NavbarP
           </div>
 
           {/* Search Bar */}
-          <div className="hidden sm:flex items-center">
-            <div 
-              onClick={onSearchClick}
-              className="relative cursor-pointer group"
-            >
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              <input
-                id="global-search"
-                type="text"
-                readOnly
-                placeholder="Search questions, technologies..."
-                className={cn(
-                  "w-[280px] lg:w-[360px] rounded-xl border border-border bg-muted/50 pl-10 pr-16 py-2 text-sm cursor-pointer",
-                  "focus:outline-none focus:ring-1 focus:ring-border",
-                  "placeholder:text-muted-foreground/50",
-                  "transition-all duration-200"
-                )}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-1 text-[10px] text-muted-foreground select-none pointer-events-none">
-                <kbd className="px-1.5 py-0.5 rounded border border-border bg-card font-mono">⌘</kbd>
-                <kbd className="px-1.5 py-0.5 rounded border border-border bg-card font-mono">K</kbd>
-              </div>
+          <motion.div
+            onClick={onSearchClick}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="relative cursor-pointer group hidden sm:flex items-center"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <input
+              id="global-search"
+              type="text"
+              readOnly
+              placeholder="Search questions, technologies..."
+              className={cn(
+                "w-[280px] lg:w-[360px] rounded-xl border border-border/70 bg-card/60 hover:bg-card pl-10 pr-16 py-2 text-sm cursor-pointer",
+                "focus:outline-none focus:ring-1 focus:ring-primary/40",
+                "placeholder:text-muted-foreground/60 font-medium",
+                "transition-all duration-200 shadow-sm"
+              )}
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-1 text-[10px] text-muted-foreground select-none pointer-events-none">
+              <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted/80 font-mono font-semibold">⌘</kbd>
+              <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted/80 font-mono font-semibold">K</kbd>
             </div>
-          </div>
+            <motion.div
+              className="absolute inset-0 rounded-xl bg-primary/5 pointer-events-none"
+              animate={{ opacity: [0, 0.4, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
+
+          {/* Mobile search button */}
+          <motion.button
+            onClick={onSearchClick}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+          >
+            <Search className="h-5 w-5 text-muted-foreground" />
+          </motion.button>
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          {/* Mobile search */}
-          <button 
-            onClick={onSearchClick}
-            className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-          >
-            <Search className="h-5 w-5 text-muted-foreground" />
-          </button>
-
-
           {/* Notifications Container */}
           <div className="relative flex items-center" ref={dropdownRef}>
-            <button
+            <motion.button
               id="notifications-btn"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className="relative p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
             >
@@ -166,7 +174,7 @@ export function Navbar({ onMenuClick, sidebarCollapsed, onSearchClick }: NavbarP
               {hasUnread && (
                 <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
               )}
-            </button>
+            </motion.button>
 
             <AnimatePresence>
               {notificationsOpen && (

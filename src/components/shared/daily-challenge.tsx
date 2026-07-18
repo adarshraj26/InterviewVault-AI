@@ -198,40 +198,59 @@ export function DailyChallenge() {
               </h4>
 
               {/* Options */}
-              <div className="space-y-2 flex-grow">
+              <div className="space-y-2.5 flex-grow">
                 {question.options.map((option, idx) => {
                   const isSelected = selectedIdx === idx;
                   const isCorrectOption = question.correctAnswer === idx;
 
-                  let btnStyles = "border-border/60 hover:border-foreground/30 hover:bg-muted/30";
+                  let btnStyles = "border-border/60 hover:border-primary/40 hover:bg-muted/40 text-foreground";
                   let badge = null;
 
                   if (hasAnswered) {
                     if (isCorrectOption) {
-                      btnStyles = "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-medium";
-                      badge = <Check className="h-4 w-4 text-emerald-400 shrink-0" />;
+                      btnStyles = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)]";
+                      badge = (
+                        <motion.div
+                          initial={{ scale: 0, rotate: -45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                        >
+                          <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                        </motion.div>
+                      );
                     } else if (isSelected) {
-                      btnStyles = "border-red-500/30 bg-red-500/10 text-red-400 font-medium";
-                      badge = <X className="h-4 w-4 text-red-400 shrink-0" />;
+                      btnStyles = "border-red-500/50 bg-red-500/10 text-red-400 font-semibold";
+                      badge = (
+                        <motion.div
+                          initial={{ scale: 0, rotate: 45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                        >
+                          <X className="h-4 w-4 text-red-400 shrink-0" />
+                        </motion.div>
+                      );
                     } else {
-                      btnStyles = "border-border/40 opacity-50 cursor-not-allowed";
+                      btnStyles = "border-border/40 opacity-40 cursor-not-allowed";
                     }
                   }
 
                   return (
-                    <button
+                    <motion.button
                       key={idx}
                       disabled={hasAnswered}
+                      whileHover={!hasAnswered ? { scale: 1.02, x: 4 } : undefined}
+                      whileTap={!hasAnswered ? { scale: 0.98 } : undefined}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
                       onClick={() => handleSelectOption(idx)}
                       className={cn(
-                        "w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition-all flex items-center justify-between gap-3 focus:outline-none",
-                        !hasAnswered && "cursor-pointer active:scale-[0.99]",
+                        "w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition-colors flex items-center justify-between gap-3 focus:outline-none",
+                        !hasAnswered && "cursor-pointer",
                         btnStyles
                       )}
                     >
                       <span className="leading-snug">{option}</span>
                       {badge}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>

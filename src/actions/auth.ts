@@ -59,6 +59,8 @@ export async function registerUser(data: RegisterInput) {
   }
 }
 
+
+
 export async function loginUser(data: LoginInput) {
   try {
     const validated = loginSchema.safeParse(data);
@@ -66,9 +68,22 @@ export async function loginUser(data: LoginInput) {
       return { error: validated.error.issues[0].message };
     }
 
+    const { email, password } = validated.data;
+
+    // Pre-check: does the user exist and is their email verified?
+    const user = await db.user.findUnique({
+      where: { email },
+      select: { id: true, emailVerified: true, hashedPassword: true },
+    });
+
+    // If email+password user exists but hasn't verified their email
+    if (user && user.hashedPassword && !user.emailVerified) {
+      return { error: "EMAIL_NOT_VERIFIED", email };
+    }
+
     await signIn("credentials", {
-      email: validated.data.email,
-      password: validated.data.password,
+      email,
+      password,
       redirectTo: "/dashboard",
     });
 
@@ -86,20 +101,3 @@ export async function loginUser(data: LoginInput) {
   }
 }
 
-export async function forgotPassword(email: string) {
-  try {
-    const user = await db.user.findUnique({ where: { email } });
-    
-    // Always return success to prevent email enumeration
-    if (!user) {
-      return { success: "If an account exists, a reset link has been sent." };
-    }
-
-    // TODO: Implement email sending with Resend
-    // For now, just return success
-    return { success: "If an account exists, a reset link has been sent." };
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    return { error: "Something went wrong. Please try again." };
-  }
-}

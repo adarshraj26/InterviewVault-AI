@@ -1,24 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { GlobalSearchModal } from "@/components/shared";
+import { FloatingParticles } from "@/components/shared/floating-particles";
+import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { cn } from "@/lib/utils";
 
-const pageVariants = {
-  initial: { opacity: 0, y: 6 },
-  enter:   { opacity: 1, y: 0 },
-  exit:    { opacity: 0 },
-};
-
-const pageTransition = {
-  duration: 0.18,
-  ease: "easeOut" as const,
-};
 
 export default function DashboardLayout({
   children,
@@ -28,7 +18,10 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const pathname = usePathname();
+
+  // Register swipe-right-from-left-edge → history.back() on mobile
+  useSwipeBack();
+
 
   // Listen for Cmd+K / Ctrl+K globally
   useEffect(() => {
@@ -44,6 +37,9 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Atmospheric floating particles */}
+      <FloatingParticles count={12} />
+
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
@@ -73,22 +69,9 @@ export default function DashboardLayout({
           onSearchClick={() => setSearchOpen(true)}
         />
 
-        {/* AnimatePresence mode="popLayout" lets the new page mount immediately
-             instead of waiting for the old page's exit — required for server-component
-             pages that go through a Suspense boundary, otherwise the new page is blank. */}
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.main
-            key={pathname}
-            variants={pageVariants}
-            initial="initial"
-            animate="enter"
-            exit="exit"
-            transition={pageTransition}
-            className="p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-24"
-          >
-            {children}
-          </motion.main>
-        </AnimatePresence>
+        <main className="p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-24">
+          {children}
+        </main>
       </div>
 
       {/* Persistent Mobile Bottom Navigation — never unmounts */}

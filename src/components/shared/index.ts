@@ -15,4 +15,12 @@ export { UserAvatar } from "./UserAvatar";
 export type { UserAvatarUser } from "./UserAvatar";
 export { CustomSelect } from "./custom-select";
 export type { SelectOption, CustomSelectProps } from "./custom-select";
-
+export {
+  DashboardSkeleton,
+  SavedSkeleton,
+  NotesSkeleton,
+  AnalyticsSkeleton,
+  TechnologiesSkeleton,
+  MockInterviewSkeleton,
+  GenericPageSkeleton,
+} from "./skeletons";

@@ -175,18 +175,28 @@ export default function CommunityDashboard({
 
       {/* Tech filter tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        {techFilters.map((filter) => (
-          <button 
-            key={filter} 
-            onClick={() => setSelectedTech(filter)}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all", 
-              selectedTech === filter ? "gradient-bg text-white shadow-lg shadow-primary/25" : "glass hover:bg-muted text-muted-foreground"
-            )}
-          >
-            {filter}
-          </button>
-        ))}
+        {techFilters.map((filter) => {
+          const isSelected = selectedTech === filter;
+          return (
+            <button
+              key={filter}
+              onClick={() => setSelectedTech(filter)}
+              className={cn(
+                "relative px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors",
+                isSelected ? "text-white font-semibold" : "glass hover:bg-muted text-muted-foreground"
+              )}
+            >
+              {isSelected && (
+                <motion.div
+                  layoutId="community-tech-filter"
+                  className="absolute inset-0 rounded-xl gradient-bg shadow-lg shadow-primary/25 z-0"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{filter}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Questions Grid */}
@@ -217,7 +227,12 @@ export default function CommunityDashboard({
             const isBookmarked = q.bookmarks.some((b) => b.userId === currentUserId);
 
             return (
-              <motion.div key={q.id} variants={fadeInUp}>
+              <motion.div
+                key={q.id}
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 350, damping: 22 }}
+              >
                 <GlassCard hover className="h-full flex flex-col justify-between">
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-3">
@@ -238,36 +253,32 @@ export default function CommunityDashboard({
                   
                   <div className="mt-auto flex items-center justify-between pt-3 border-t border-border/50">
                     <span className="text-xs text-muted-foreground">by {q.user.name || q.user.email.split("@")[0]}</span>
-                    <div className="flex items-center gap-3">
-                      <button 
+
+                    <div className="flex items-center gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.85 }}
                         onClick={() => handleLike(q.id)}
                         className={cn(
-                          "flex items-center gap-1 text-xs transition-colors",
-                          isLiked ? "text-rose-500" : "text-muted-foreground hover:text-rose-500"
+                          "flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer",
+                          isLiked ? "border-rose-500/30 bg-rose-500/10 text-rose-500" : "border-border/60 hover:bg-muted text-muted-foreground"
                         )}
                       >
-                        <Heart className={cn("h-4 w-4", isLiked && "fill-rose-500")} />
+                        <Heart className={cn("h-3.5 w-3.5", isLiked && "fill-current")} />
                         <span>{q.likes.length}</span>
-                      </button>
-                      
-                      <button 
+                      </motion.button>
+
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.85 }}
                         onClick={() => handleBookmark(q.id)}
                         className={cn(
-                          "flex items-center gap-1 text-xs transition-colors",
-                          isBookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
+                          "flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer",
+                          isBookmarked ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-500" : "border-border/60 hover:bg-muted text-muted-foreground"
                         )}
                       >
-                        <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-primary")} />
-                        <span>{q.bookmarks.length}</span>
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleCopy(q.id, q.title)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        title="Copy question title"
-                      >
-                        {copiedId === q.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                      </button>
+                        <Bookmark className={cn("h-3.5 w-3.5", isBookmarked && "fill-current")} />
+                      </motion.button>
                     </div>
                   </div>
                 </GlassCard>
